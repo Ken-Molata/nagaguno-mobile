@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AndroidManifest.xml — hand-authored, NOT the output of `flutter create`.
+
+  This environment has no Flutter SDK (see the session's network-access
+  notes), so this is not a complete, real Android project scaffold — it's
+  specifically the permissions/manifest block that always needs custom
+  editing regardless of what `flutter create` generates, written now so
+  it's not missed later. Once you run `flutter create .` in this project
+  directory (which regenerates the full platform boilerplate while
+  preserving pubspec.yaml/lib/test), merge this file's <uses-permission>
+  entries and the <application> block's attributes into whatever it
+  produces — don't just drop this file in as-is over a freshly generated
+  one, since the generated one will have additional required entries
+  (icons, theme references) this hand-written version doesn't know about.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Every permission below is required for a real feature already
+         built this session — not requested speculatively. -->
+
+    <!-- Every API call the app makes (auth, marketplace, orders, KYC
+         submission, demand forecast, etc.) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- KYC liveness check (camera package + google_mlkit_face_detection) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Product listing photos, crop plan photos, KYC ID photos, profile
+         photos — all via image_picker's gallery source -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- UW 15's proposed push channel (FCM). Required at runtime on
+         Android 13+ (API 33+) for any notification to actually show —
+         requested via firebase_messaging's requestPermission() in
+         core/push/push_notification_service.dart, this just declares
+         it's used. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Declares the camera as a feature the app uses, but NOT required
+         to install — a low-end/older device without a working camera
+         should still be able to install and use every feature except
+         the liveness check, not be blocked from the Play Store listing
+         entirely. This is a deliberate choice, not a default. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- REAL BUG FOUND AND FIXED: without this, url_launcher's
+         canLaunchUrl()/launchUrl() can silently fail for an https link
+         on Android 11+ (API 30+): package-visibility rules there
+         mean this app can't even detect another app's ability to open
+         a URL unless it's declared here, regardless of whether a
+         browser is actually installed. Confirmed live: KYC's hand-off
+         to Didit's hosted verification page (kyc_submission_screen
+         .dart) never opened anything, with no error shown, because of
+         exactly this. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="NagaGuno"
+        android:icon="@mipmap/ic_launcher">
+        <!-- usesCleartextTraffic is deliberately NOT set to true here —
+             the real backend and demand-forecast/recommendation
+             services should all be reached over HTTPS in any real
+             deployment; if a staging/dev environment genuinely needs
+             plain HTTP, that should be a deliberate, environment-scoped
+             network_security_config addition, not a blanket manifest
+             flag left in by default. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <!-- UW 15's proposed push channel (FCM): the channel ID a
+             background/terminated-app notification is shown under
+             when the app doesn't specify one explicitly, matching the
+             channel core/push/push_notification_service.dart creates
+             on launch. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="chat_messages" />
+    </application>
+</manifest>

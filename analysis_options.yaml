@@ -1,0 +1,22 @@
+# analysis_options.yaml
+#
+# Without this file, the flutter_lints package declared in
+# pubspec.yaml's dev_dependencies does genuinely nothing -- it needs
+# to be explicitly included here for `flutter analyze` (and the CI
+# workflow that runs it) to actually apply its rule set, rather than
+# fall back to Dart's bare minimum default analysis. Matches what
+# `flutter create` generates by default.
+
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Kept at the standard flutter_lints defaults deliberately, not
+    # customized -- this codebase has never been run through a real
+    # analyzer yet (see README.md), so tightening or loosening rules
+    # before knowing what the defaults actually surface would be
+    # guessing at the wrong problem to solve.
+
+analyzer:
+  exclude:
+    - build/**

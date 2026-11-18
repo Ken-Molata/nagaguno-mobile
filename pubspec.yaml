@@ -1,0 +1,166 @@
+name: nagaguno_mobile
+description: NagaGuno agricultural marketplace — Flutter mobile client for Naga City farmers, vendors, and buyers.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Networking — dio chosen over the bare http package specifically for
+  # its interceptor support (token refresh, matching the web app's own
+  # Axios interceptor pattern).
+  dio: ^5.4.3+1
+
+  # Secure token storage — Keychain (iOS) / Keystore (Android) backed,
+  # the mobile equivalent of the web app's httpOnly refresh-token cookie.
+  flutter_secure_storage: ^9.2.2
+
+  # Camera + on-device face detection, for KYC liveness (see the
+  # KYC Liveness Detection spec — this is the exact package it names).
+  # Reused (one-shot, static-image mode) for the strict produce-photo
+  # rule below -- rejecting any listing photo with a human face in it
+  # (ml/image_validation/face_presence_detector.dart).
+  camera: ^0.10.6
+  # ^0.12.0, not the originally-guessed ^0.10.0: `flutter pub get`
+  # found a real version conflict -- ^0.10.0 only accepts
+  # google_mlkit_commons ^0.7.x, which google_mlkit_image_labeling
+  # ^0.13.0 (below) can't satisfy. Bumped rather than downgrading
+  # image_labeling, since this is the actively-used, newer major line.
+  google_mlkit_face_detection: ^0.12.0
+  permission_handler: ^11.3.1
+
+  # UW 11's produce-photo validation ("reject non-crop images") --
+  # on-device, before upload, same ML Kit family as the face detector
+  # above (not a separately bundled MobileNet .tflite file -- see
+  # ml/image_validation/produce_classifier.dart's own comment for why
+  # that route wasn't taken: this environment can't fetch/fabricate a
+  # real model binary, and ML Kit's on-device Image Labeling model is
+  # the real, buildable equivalent, documented by Google as a
+  # lightweight MobileNet-derived architecture).
+  google_mlkit_image_labeling: ^0.13.0
+  # InputImage's defining package -- imported explicitly in
+  # produce_classifier.dart rather than relying on google_mlkit_image_labeling
+  # to re-export it, which isn't something to assume without package
+  # source access to confirm. Version left unpinned (not ^0.9.0 as
+  # originally guessed): google_mlkit_face_detection ^0.10.0 only
+  # accepts google_mlkit_commons ^0.7.x, a real conflict `flutter pub
+  # get` caught -- letting pub resolve the one version both packages
+  # actually agree on, rather than re-guessing a second time.
+  google_mlkit_commons: any
+
+  # Routing
+  go_router: ^14.2.0
+
+  # Image picking/compression for listing photos
+  image_picker: ^1.1.2
+
+  # Local persistence for accessibility settings (text scale, high
+  # contrast, reduce motion) -- these are genuinely local, device-only
+  # preferences with no backend counterpart, unlike everything else
+  # in this app. Re-added deliberately for this real use case, after
+  # being removed earlier for having none.
+  shared_preferences: ^2.2.3
+
+  # Connectivity detection -- the original spec explicitly required
+  # offline/poor-connection handling (Section 66), which had no
+  # implementation anywhere until now.
+  connectivity_plus: ^6.0.5
+
+  # Google Sign-In -- the real backend has had a working
+  # POST /auth/google endpoint the whole session with nothing calling
+  # it. Real platform configuration (OAuth client ID from Google Cloud
+  # Console, google-services.json) is NOT something this environment
+  # can fabricate -- see the code comments and README for exactly
+  # what's real code vs. what still needs your own Google Cloud
+  # project, same "don't guess a real secret" discipline as the
+  # Gradle/font-file gaps.
+  google_sign_in: ^6.2.1
+
+  # Opening the (not-yet-provided) Privacy Policy / Terms of Service
+  # URLs -- see core/configuration/env_config.dart.
+  url_launcher: ^6.3.0
+
+  # UW 15's proposed push channel for UW 13 chat (FCM, not Supabase
+  # Realtime -- see backend/utils/fcmService.js's own comment for why).
+  # Real, working Dart integration (core/push/push_notification_service.dart)
+  # configured via explicit FirebaseOptions + --dart-define
+  # (core/configuration/firebase_config.dart) rather than the
+  # google-services.json/Gradle-plugin route -- deliberately avoided,
+  # see android/app/build.gradle's own comment for why. Needs your own
+  # Firebase project's four config values at build time; see
+  # PLATFORM_SETUP.md and README.md's "Push Notifications" section.
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+
+  # UW 21.6's Read Aloud: "a speaker button appears beside listings,
+  # notifications, and order status text. Tapping it reads that text
+  # aloud... using the device's built-in voices." No SDK-only
+  # equivalent exists (unlike the square-crop/chart work elsewhere this
+  # session, which deliberately avoided new packages) -- text-to-speech
+  # genuinely needs a platform plugin. flutter_tts wraps each
+  # platform's own built-in engine (Android TextToSpeech / iOS
+  # AVSpeechSynthesizer), matching "the device's built-in voices"
+  # literally rather than bundling a separate voice engine.
+  flutter_tts: ^4.2.0
+
+  # Shopee-style delivery pin: buyer drops/updates a pin for their
+  # delivery location, seller sees exactly where to go. OpenStreetMap
+  # tiles via flutter_map -- no API key/billing needed (the user's own
+  # choice over Google Maps, which would need a real Cloud Console key
+  # same as Google Sign-In's own gap). latlong2 is flutter_map's own
+  # coordinate type dependency.
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.3
+  # Was already pulled in transitively (via flutter_test); declared
+  # directly since inactivity_guard_test.dart imports it for FakeAsync.
+  fake_async: ^1.3.1
+  # App icon generation from assets/icons/app_icon.png (the same mark used
+  # on the web app's favicon/navbar/admin sidebar). NOT run as part of this
+  # session -- this project has no android/ios native platform folders yet
+  # (never scaffolded via `flutter create`), so there's nothing for this
+  # tool to write icons into. Once scaffolded, generate with:
+  #   flutter pub get && flutter pub run flutter_launcher_icons
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icons/app_icon.png
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+  fonts:
+    # Matching the real, verified web app design tokens (design-audit
+    # session): Fraunces for headings, DM Sans for body text.
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Fraunces-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Fraunces-Black.ttf
+          weight: 900
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700

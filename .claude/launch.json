@@ -1,0 +1,33 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flutter-web",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port=3000",
+        "--web-hostname=127.0.0.1",
+        "--target=lib/main_web_admin.dart",
+        "--dart-define=API_BASE_URL=https://nagaguno-backend-nbrw.onrender.com/api"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "flutter-mobile-web",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port=3001",
+        "--web-hostname=127.0.0.1",
+        "--target=lib/main.dart",
+        "--dart-define=API_BASE_URL=https://nagaguno-backend-nbrw.onrender.com/api"
+      ],
+      "port": 3001
+    }
+  ]
+}

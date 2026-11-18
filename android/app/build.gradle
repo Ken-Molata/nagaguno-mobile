@@ -1,0 +1,98 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+    // UW 15's proposed push channel (FCM) initializes via explicit
+    // FirebaseOptions in main.dart instead of this plugin + a real
+    // google-services.json -- see settings.gradle's own comment for
+    // why that route was deliberately not taken here.
+}
+
+android {
+    // applicationId matches the iOS CFBundleIdentifier already set in
+    // ios/Runner/Info.plist (com.nagaguno.mobile) — kept consistent
+    // across both platforms deliberately, not by coincidence.
+    namespace "com.nagaguno.mobile"
+
+    // Every value below verified directly against a real `flutter
+    // create` run this session (Flutter 3.35.5 stable) — this file
+    // was NOT hand-guessed; see PLATFORM_SETUP.md for why that
+    // distinction mattered when this project was first scaffolded
+    // without Flutter SDK access.
+    compileSdk 36
+    // Bumped from 27.0.12077973 per this session's real `flutter build`
+    // output: the `jni` plugin (a transitive dependency of the ML Kit
+    // packages) requires 28.2.13676358, and Flutter's own tooling
+    // recommends using the highest required version since NDKs are
+    // backward compatible -- not a guess, the build told us directly.
+    ndkVersion "28.2.13676358"
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+    }
+
+    defaultConfig {
+        applicationId "com.nagaguno.mobile"
+        // minSdk 24 verified for real, not the 21 this project would
+        // have guessed at earlier — camera + google_mlkit_face_detection
+        // both work fine at 24, and this is what `flutter create`
+        // itself generated as the real default for this Flutter version.
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    buildTypes {
+        release {
+            // Signing config intentionally left as the debug default
+            // here — a real release keystore is a deployment-time
+            // secret that shouldn't be fabricated in this environment;
+            // replace this before an actual Play Store build.
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Real build error, caught by an actual `flutter build apk --debug` run
+// in a real terminal (the only thing that got past this session's
+// sandboxed loopback-socket restriction): ":app:checkDebugDuplicateClasses"
+// failed with "Duplicate class com.google.firebase.iid.FirebaseInstanceIdReceiver"
+// -- some transitive dependency (most likely google_sign_in's underlying
+// play-services libraries) still pulls in the old, deprecated
+// firebase-iid artifact, which firebase_messaging 15.x's newer
+// firebase-messaging artifact already fully supersedes. This is
+// Google's own documented fix for this exact class of conflict, not a
+// guess: https://d.android.com/r/tools/classpath-sync-errors
+//
+// REAL BUG FOUND AND FIXED (caught live, once a real Firebase project
+// finally let push notifications actually run): excluding
+// firebase-iid-interop here too was one exclude too many. That duplicate
+// class was FirebaseInstanceIdReceiver, which lives in firebase-iid
+// itself -- firebase-iid-interop is a separate, small "interop" artifact
+// that only defines the FirebaseInstanceIdInternal interface,
+// specifically so firebase-messaging's own registrar can supply it
+// without depending on the legacy firebase-iid implementation. Excluding
+// it removed a class firebase-messaging genuinely loads at runtime,
+// which crashed the app on startup with NoClassDefFoundError the moment
+// Firebase.initializeApp() actually ran against a real project (every
+// earlier build-time check passed fine, since nothing before this
+// exercised that code path without a real FIREBASE_SERVICE_ACCOUNT_KEY /
+// client config to make Firebase.initializeApp() actually succeed).
+configurations.all {
+    exclude group: "com.google.firebase", module: "firebase-iid"
+}
+
+flutter {
+    source "../.."
+}

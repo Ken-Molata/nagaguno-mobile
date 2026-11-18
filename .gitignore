@@ -1,0 +1,51 @@
+# .gitignore
+#
+# Matches what `flutter create` normally generates automatically —
+# built by hand here since this project was scaffolded without
+# Flutter SDK access. Also see PLATFORM_SETUP.md for the related note
+# on android/local.properties specifically never being committed.
+
+# Flutter/Dart build artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+*.g.dart
+
+# Android
+android/local.properties
+android/**/gradle-wrapper.jar
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+# A real release keystore is a deployment-time secret -- never commit
+# one, and never commit the properties file that references it.
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+
+# iOS
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+**/xcuserdata/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage output
+coverage/
+
+# Stray debug/build artifacts (not project source)
+ui_dump*.xml
+NagaGuno-web-build.zip

@@ -1,0 +1,43 @@
+pluginManagement {
+    def flutterSdkPath = {
+        def properties = new Properties()
+        file("local.properties").withInputStream { properties.load(it) }
+        def flutterSdkPath = properties.getProperty("flutter.sdk")
+        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
+        return flutterSdkPath
+    }()
+
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    // Versions verified directly against a real `flutter create` run
+    // this session (Flutter 3.35.5 stable) — not guessed, per the
+    // explicit scope boundary noted in PLATFORM_SETUP.md when this
+    // project was first hand-scaffolded.
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    id "com.android.application" version "8.9.1" apply false
+    id "org.jetbrains.kotlin.android" version "2.1.0" apply false
+}
+
+// UW 15's proposed push channel (FCM): deliberately NOT wiring the
+// Google Services Gradle plugin / google-services.json here, same
+// reasoning PLATFORM_SETUP.md's existing Google Sign-In section
+// already gives for that identical problem shape -- adding the plugin
+// reference without a REAL google-services.json present would make
+// the whole build fail outright (the plugin requires it to exist and
+// parse as real Firebase project data, not just be present), which is
+// worse than the current state. firebase_core/firebase_messaging are
+// still added via pubspec.yaml and initialized in main.dart via
+// explicit FirebaseOptions (core/configuration/firebase_config.dart)
+// instead -- FlutterFire's own documented alternative to the Gradle-
+// plugin route, which needs no native build file changes at all. See
+// PLATFORM_SETUP.md's "Push Notifications" section.
+
+include ":app"

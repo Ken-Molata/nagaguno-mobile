@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Info.plist — hand-authored, NOT the output of `flutter create`, for
+  the same reason as the Android manifest (no Flutter SDK in this
+  environment — see that file's header comment for the full note on
+  merging this into a real generated project rather than dropping it
+  in as-is).
+
+  The two usage-description strings below are NOT optional boilerplate
+  — iOS will reject the camera/photo permission request outright (not
+  just show a generic dialog) if these keys are missing, and Apple's
+  App Store review will reject a submission that requests camera
+  access without one. The text itself matches the actual, real reason
+  the app needs each permission — not a generic placeholder string.
+
+  GOOGLE SIGN-IN, iOS-SPECIFIC: also requires a CFBundleURLTypes entry
+  containing the REVERSED CLIENT ID from your real GoogleService-Info.plist
+  (a value like com.googleusercontent.apps.XXXXX, reversed), a real
+  credential that comes from your own Google Cloud project, the same
+  way the OAuth client ID itself does (see README.md's Google Sign-In
+  section). Deliberately left as this comment, not a fake XML entry
+  with an invalid placeholder value; a real-looking but wrong
+  CFBundleURLTypes block risks being mistaken for working config and
+  never actually fixed, whereas a comment can't be missed but also
+  can't be silently "half-configured."
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>NagaGuno</string>
+	<key>CFBundleName</key>
+	<string>nagaguno_mobile</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.nagaguno.mobile</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>NagaGuno needs your camera to confirm it's really you during identity verification.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>NagaGuno needs access to your photos so you can upload a product photo, crop photo, ID document, or profile picture.</string>
+
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+</dict>
+</plist>
