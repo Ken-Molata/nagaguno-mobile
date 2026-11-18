@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/friendly_error_message.dart';
 import '../../authentication/application/auth_controller.dart';
 import '../../buyer_mode/application/buyer_mode_controller.dart';
 import '../../buyer_mode/presentation/widgets/buyer_mode_label.dart';
@@ -54,9 +55,12 @@ class TransactionHistoryScreen extends ConsumerWidget {
       body: SafeArea(
         child: historyAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, __) => Center(
+          // Same fix as sales_analytics_screen.dart's identical pattern:
+          // show the real cause (e.g. a Render free-tier cold-start
+          // timeout) instead of one indistinguishable generic message.
+          error: (e, __) => Center(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text('Couldn\'t load transaction history.'),
+              Text(friendlyErrorMessage(e)),
               const SizedBox(height: AppSpacing.sm),
               ElevatedButton(
                   onPressed: () => ref.invalidate(_transactionHistoryProvider),

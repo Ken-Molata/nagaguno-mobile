@@ -133,21 +133,27 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                       const Icon(Icons.storefront_outlined,
                           size: 18, color: AppColors.textMuted),
                       const SizedBox(width: AppSpacing.xs),
-                      // Only tappable for farmer-sold products -- no
-                      // public vendor directory/profile screen exists
-                      // in this app (no such backend endpoint either),
-                      // so a vendor's name stays plain text here
-                      // rather than link to a screen that can't exist.
-                      product.sellerRole == 'farmer'
-                          ? InkWell(
-                              onTap: () =>
-                                  context.push('/farmers/${product.sellerId}'),
-                              child: Text(product.displaySellerName,
-                                  style: AppTypography.body.copyWith(
-                                      decoration: TextDecoration.underline)),
-                            )
-                          : Text(product.displaySellerName,
-                              style: AppTypography.body),
+                      // REAL BUG FOUND AND FIXED: this used to be
+                      // non-tappable for vendor-sold products on the
+                      // claim that no vendor profile screen existed --
+                      // that's no longer true (app_router.dart's
+                      // '/vendors/:id' + vendor_detail_screen.dart),
+                      // and every other seller-name link in the app
+                      // (product_card.dart, production_plan_card.dart,
+                      // recommendations_widget.dart) already branches
+                      // on sellerRole the same way. This was the one
+                      // remaining dead end for a buyer trying to reach
+                      // a vendor's profile from a product they found
+                      // in the marketplace.
+                      InkWell(
+                        onTap: () => context.push(product.sellerRole ==
+                                'vendor'
+                            ? '/vendors/${product.sellerId}'
+                            : '/farmers/${product.sellerId}'),
+                        child: Text(product.displaySellerName,
+                            style: AppTypography.body.copyWith(
+                                decoration: TextDecoration.underline)),
+                      ),
                       const SizedBox(width: AppSpacing.xs),
                       const Icon(Icons.verified,
                           size: 16, color: AppColors.secondary),

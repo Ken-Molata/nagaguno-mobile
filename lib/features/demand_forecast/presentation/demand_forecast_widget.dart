@@ -174,9 +174,21 @@ class DemandForecastWidget extends ConsumerWidget {
           if (forecast.history.isNotEmpty || forecast.forecast.isNotEmpty)
             _DemandChart(history: forecast.history, forecast: forecast.forecast),
           const SizedBox(height: AppSpacing.sm),
-          Text('Projected demand (next ${forecast.forecast.length} weeks)',
+          // REAL BUG FOUND AND FIXED: the Weekly/Daily toggle above only
+          // ever changed the per-crop breakdown rows further down --
+          // this headline figure (the first number anyone actually
+          // looks at) stayed the same weekly total either way, making
+          // the toggle look broken/inert. Daily here is the same /7
+          // derivation already used for each per-crop row, just applied
+          // to the category-level total too, so the toggle now visibly
+          // changes something at every level of this widget.
+          Text(
+              isWeekly
+                  ? 'Projected demand (next ${forecast.forecast.length} weeks)'
+                  : 'Projected demand (daily average, next ${forecast.forecast.length} weeks)',
               style: AppTypography.label),
-          Text('${forecast.projectedTotal.toStringAsFixed(0)} kg',
+          Text(
+              '${(isWeekly ? forecast.projectedTotal : forecast.projectedTotal / 7).toStringAsFixed(isWeekly ? 0 : 1)} kg',
               style: AppTypography.h2),
           if (forecast.suggestion != null) ...[
             const SizedBox(height: AppSpacing.sm),

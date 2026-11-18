@@ -248,6 +248,19 @@ class _AdminRecoveryDetailDialogState
                   'Age': submitted['age']?.toString() ?? '—',
                   'Password': submitted['password']?.toString() ?? '—',
                   'ID type': submitted['id_type']?.toString() ?? '—',
+                  // REAL GAP FOUND AND FIXED, live-caught: this card had
+                  // no field at all for WHY the user is recovering (the
+                  // reason they picked on the account's own Step 3,
+                  // which already determines flags like
+                  // account_never_verified upstream) and no contact
+                  // value to actually compare against onRecord's
+                  // Email/Phone row -- the comparison the two-column
+                  // layout exists for had nothing to compare on this
+                  // one specific point.
+                  'Reason for recovery': submitted['reason_other'] != null
+                      ? '${submitted['reason']}: "${submitted['reason_other']}"'
+                      : submitted['reason']?.toString() ?? '—',
+                  'Contact provided': submitted['contact_for_updates']?.toString() ?? '—',
                 }, imageUrls: [
                   submitted['id_front_url'] as String?,
                   submitted['id_back_url'] as String?,

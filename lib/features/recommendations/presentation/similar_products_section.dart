@@ -12,9 +12,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/product_categories.dart';
+import '../../marketplace/presentation/product_detail_screen.dart';
 import '../data/recommendations_repository.dart';
 import '../domain/recommendation.dart';
 
@@ -55,8 +55,23 @@ class SimilarProductsSection extends ConsumerWidget {
                   return SizedBox(
                     width: 130,
                     child: InkWell(
-                      onTap: () =>
-                          context.push('/marketplace/product/${p.productId}'),
+                      // REAL BUG FOUND AND FIXED: same shell-branch push
+                      // failure as farmer_detail_screen.dart's and
+                      // vendor_detail_screen.dart's own Products grids --
+                      // '/marketplace/product/:id' is nested inside the
+                      // Marketplace tab's StatefulShellBranch, and this
+                      // section renders inside ProductDetailScreen
+                      // regardless of how THAT screen itself was reached.
+                      // When it was opened from a Farmer/Vendor profile's
+                      // Products grid (itself already a plain
+                      // Navigator.push, outside the shell), this tile's
+                      // context.push() of the nested path silently did
+                      // nothing. A plain Navigator.push sidesteps the
+                      // branch routing and works from any entry point.
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  ProductDetailScreen(productId: p.productId))),
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       child: Container(
                         decoration: BoxDecoration(

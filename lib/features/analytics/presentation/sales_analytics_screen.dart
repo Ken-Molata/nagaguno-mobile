@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/networking/api_client.dart';
+import '../../../core/utils/friendly_error_message.dart';
 import '../../authentication/application/auth_controller.dart';
 import '../../buyer_mode/application/buyer_mode_controller.dart';
 import '../../authentication/domain/nagaguno_user.dart';
@@ -94,9 +95,18 @@ class SalesAnalyticsScreen extends ConsumerWidget {
             Expanded(
               child: analyticsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, __) => Center(
+                // REAL GAP FOUND AND FIXED: this discarded the actual
+                // error entirely, always showing the same generic
+                // "Couldn't load analytics." whether the cause was a
+                // genuine server error or (very plausibly, on Render's
+                // free tier) the backend having spun down from idle and
+                // timing out on cold start -- the Retry button already
+                // existed, but with no way to tell those apart, every
+                // failure looked identical even to a developer
+                // debugging it after the fact.
+                error: (e, __) => Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('Couldn\'t load analytics.'),
+                    Text(friendlyErrorMessage(e)),
                     const SizedBox(height: AppSpacing.sm),
                     ElevatedButton(
                         onPressed: () =>

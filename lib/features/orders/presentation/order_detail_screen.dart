@@ -90,8 +90,43 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<OrderDetailScreen> createState() => _OrderDetailScreenState();
 }
 
-class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
+class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen>
+    with WidgetsBindingObserver {
   bool _busy = false;
+
+  // REAL BUG FOUND AND FIXED: this screen never refreshed itself after
+  // the buyer returned from the external GCash/Xendit checkout page --
+  // the Gateway webhook that flips the order from 'pending' to
+  // 'confirmed' can land a few seconds to a few minutes after the
+  // redirect back into the app (same root cause already documented on
+  // retry-payment/cancel's own reconciliation, see _run's comment
+  // below), so the buyer could keep looking at a stale 'pending' order
+  // showing "Retry Payment" after already paying successfully, and
+  // tapping the stale "Cancel" button on it hit PATCH /:id/status's
+  // compare-and-set guard (order.status !== transition.from, now 409
+  // since the real status had moved on) -- surfacing as a generic
+  // "Something went wrong" with no indication the payment had actually
+  // gone through. Returning to the app from the external browser fires
+  // AppLifecycleState.resumed, so refreshing there catches the webhook
+  // update without the buyer having to back out and re-open the order.
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(_orderDetailProvider(widget.orderId));
+    }
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     setState(() => _busy = true);

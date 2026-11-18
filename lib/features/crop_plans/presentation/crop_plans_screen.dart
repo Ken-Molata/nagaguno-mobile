@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/networking/api_client.dart';
 import '../../../core/localization/app_strings.dart';
+import '../../../core/utils/friendly_error_message.dart';
 import '../../../shared/widgets/verification_banner.dart';
 import '../../buyer_mode/application/buyer_mode_controller.dart';
 import '../../buyer_mode/presentation/widgets/buyer_mode_banner.dart';
@@ -336,11 +337,20 @@ class _CropCard extends ConsumerWidget {
                         .read(cropPlansRepositoryProvider)
                         .deleteCropPlan(plan.id);
                     ref.invalidate(cropPlansProvider);
-                  } catch (_) {
+                  } catch (e) {
+                    // REAL BUG FOUND AND FIXED: this always showed the
+                    // generic "couldn't delete, try again" regardless
+                    // of cause -- including the backend's real 409
+                    // "this plan has an agreement requested or active
+                    // against it" (routes/cropPlans.js's
+                    // hasActiveAgreements guard), which is a deliberate,
+                    // permanent block, not a transient failure "try
+                    // again" implies. Every other screen in the app
+                    // already surfaces the backend's own message via
+                    // friendlyErrorMessage; this was the one holdout.
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content:
-                              Text(s.couldntDeleteCropPlanTryAgain)));
+                          content: Text(friendlyErrorMessage(e))));
                     }
                   }
                 }
