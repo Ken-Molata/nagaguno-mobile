@@ -67,6 +67,7 @@ class CropDemandRow {
     required this.demandLevel,
     required this.isListed,
     this.priceSource,
+    this.recommendedPricePhp,
   });
 
   final String? productId;
@@ -83,6 +84,14 @@ class CropDemandRow {
   final double? projectedWeekly;
   final double? projectedDaily;
   final CropDemandLevel? demandLevel;
+
+  /// A disclosed RULE-BASED nudge off [demandLevel] (+10% High, -10%
+  /// Low, unchanged Moderate) -- not a trained price prediction. There
+  /// is no real historical price-vs-demand dataset to fit one on (see
+  /// routes/demand.js's own comment on why crop_price_reference stays
+  /// narrow rather than a fitted curve). Null for an unlisted row --
+  /// nothing for this seller to actually reprice.
+  final double? recommendedPricePhp;
 
   /// REAL GAP FOUND AND FIXED: this row used to only ever exist for
   /// one of the seller's own live listings. It now also covers every
@@ -122,6 +131,9 @@ class CropDemandRow {
             ? double.tryParse(json['projected_quantity_daily'].toString())
             : null,
         demandLevel: _levelFrom(json['demand_level'] as String?),
+        recommendedPricePhp: json['recommended_price_php'] != null
+            ? double.tryParse(json['recommended_price_php'].toString())
+            : null,
       );
 }
 

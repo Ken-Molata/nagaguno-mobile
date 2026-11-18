@@ -398,6 +398,19 @@ class _CropDemandTile extends StatelessWidget {
                       style: AppTypography.label
                           .copyWith(color: AppColors.accentDark, fontSize: 10)),
                 ],
+                // A disclosed RULE-BASED nudge off demand_level, not a
+                // trained price prediction -- see
+                // CropDemandRow.recommendedPricePhp's own doc comment
+                // for why. Only shown for the seller's own listing,
+                // since there's nothing to reprice on a row that isn't
+                // theirs.
+                if (crop.isListed && crop.recommendedPricePhp != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                      'Suggested: ₱${crop.recommendedPricePhp!.toStringAsFixed(2)}/${crop.unit} (based on demand)',
+                      style: AppTypography.label
+                          .copyWith(color: AppColors.statusSuccessFg, fontSize: 10)),
+                ],
               ],
             ),
           ),
