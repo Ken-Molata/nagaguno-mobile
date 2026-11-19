@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/localization/app_strings.dart';
 import '../../../shared/widgets/verification_banner.dart';
+import '../../authentication/application/auth_controller.dart';
 import '../../../core/utils/pricing.dart';
 import '../application/marketplace_providers.dart';
 import '../../reviews/presentation/product_reviews_section.dart';
@@ -244,38 +245,66 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         },
       ),
       bottomNavigationBar: productAsync.maybeWhen(
-        data: (product) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: product.stockQty == 0
-                        ? null
-                        : () => _addToCart(product),
-                    icon:
-                        const Icon(Icons.add_shopping_cart_outlined, size: 18),
-                    label: Text(
-                        product.stockQty == 0 ? s.soldOutLabel : s.addToCartLabel),
+        data: (product) {
+          // REAL BUG FOUND AND FIXED, live-caught: a Farmer/Vendor
+          // toggled into buyer mode could open their OWN listing here
+          // and both Add to Cart and Place Order worked right up until
+          // POST /orders' new seller_id === buyer_id guard rejected it
+          // -- nothing in this screen told them why beforehand. Same
+          // self-listing check as product_card.dart's quick-add button.
+          final isOwnListing =
+              ref.watch(authControllerProvider).user?.id == product.sellerId;
+          if (isOwnListing) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        size: 18, color: AppColors.textMuted),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                        child: Text(s.thisIsYourOwnListing,
+                            style: AppTypography.bodySmall)),
+                  ],
+                ),
+              ),
+            );
+          }
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: product.stockQty == 0
+                          ? null
+                          : () => _addToCart(product),
+                      icon: const Icon(Icons.add_shopping_cart_outlined,
+                          size: 18),
+                      label: Text(product.stockQty == 0
+                          ? s.soldOutLabel
+                          : s.addToCartLabel),
+                    ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: product.stockQty == 0
-                      ? ElevatedButton(
-                          onPressed: null,
-                          child: Text(s.soldOutLabel),
-                        )
-                      : LockedButton(
-                          label: s.placeOrderLabel,
-                          onPressed: _goToCheckout,
-                        ),
-                ),
-              ],
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: product.stockQty == 0
+                        ? ElevatedButton(
+                            onPressed: null,
+                            child: Text(s.soldOutLabel),
+                          )
+                        : LockedButton(
+                            label: s.placeOrderLabel,
+                            onPressed: _goToCheckout,
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
         orElse: () => null,
       ),
     );

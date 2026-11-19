@@ -102,6 +102,18 @@ List<NavTab> _farmerTabs(AppStrings s) => [
           activeIcon: Icons.inventory_2,
           label: s.navMyProducts,
           branchIndex: branchMyProducts),
+      // REAL GAP FOUND AND FIXED: a Farmer could successfully respond
+      // to (or receive) a Smart Agreement request with no persistent
+      // way back to check its status afterward -- the only path was a
+      // small "Active Agreements" stat tile buried on the Home
+      // dashboard. Every other role-relevant workflow this fixed-up
+      // (Orders, My Products) already gets its own tab; Agreements,
+      // where a Farmer actually responds to incoming requests, hadn't.
+      NavTab(
+          icon: Icons.handshake_outlined,
+          activeIcon: Icons.handshake,
+          label: s.navAgreements,
+          branchIndex: branchAgreements),
       NavTab(
           icon: Icons.person_outline,
           activeIcon: Icons.person,
@@ -130,6 +142,19 @@ List<NavTab> _vendorTabs(AppStrings s) => [
           activeIcon: Icons.receipt_long,
           label: s.navOrders,
           branchIndex: branchOrders),
+      // REAL GAP FOUND AND FIXED: agreementsListProvider (agreements_
+      // screen.dart) already permanently views a Vendor as the buyer
+      // side of every Smart Agreement (a Vendor is a reseller, never a
+      // plan owner, so this is the only side they're ever on) -- but
+      // nothing in this nav bar led there. A Vendor who just sent an
+      // agreement request to a Farmer had no persistent way to check
+      // its status afterward, only the small "Active Agreements" stat
+      // tile on the Home dashboard.
+      NavTab(
+          icon: Icons.handshake_outlined,
+          activeIcon: Icons.handshake,
+          label: s.navAgreements,
+          branchIndex: branchAgreements),
       NavTab(
           icon: Icons.person_outline,
           activeIcon: Icons.person,

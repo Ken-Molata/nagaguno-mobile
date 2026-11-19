@@ -8,13 +8,15 @@
 // not stock a buyer can order directly.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../authentication/application/auth_controller.dart';
 import '../../../reports/domain/report_models.dart';
 import '../../../reports/presentation/report_user_screen.dart';
 import '../../domain/production_plan_listing.dart';
 
-class ProductionPlanCard extends StatelessWidget {
+class ProductionPlanCard extends ConsumerWidget {
   const ProductionPlanCard({super.key, required this.plan});
   final ProductionPlanListing plan;
 
@@ -51,9 +53,18 @@ class ProductionPlanCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // REAL BUG FOUND AND FIXED, live-caught: a Farmer toggled into
+    // buyer mode could tap their OWN production plan here and reach
+    // the agreement-request form -- POST /agreements already rejects
+    // it server-side (farmer_id === buyer_id, "You cannot request your
+    // own production plan."), but this card gave no indication
+    // beforehand and still navigated on tap. Same self-ownership check
+    // product_card.dart uses for its own quick-add button.
+    final isOwnPlan =
+        ref.watch(authControllerProvider).user?.id == plan.sellerId;
     return GestureDetector(
-      onTap: () => _requestAgreement(context),
+      onTap: isOwnPlan ? null : () => _requestAgreement(context),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -75,6 +86,24 @@ class ProductionPlanCard extends StatelessWidget {
                           child: const Icon(Icons.eco_outlined,
                               size: 40, color: AppColors.textMuted)),
                 ),
+                if (isOwnPlan)
+                  Positioned(
+                    top: AppSpacing.sm,
+                    left: AppSpacing.sm,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(AppRadius.pill)),
+                      child: const Text('Your plan',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'DMSans')),
+                    ),
+                  ),
                 Positioned(
                   bottom: AppSpacing.sm,
                   left: AppSpacing.sm,

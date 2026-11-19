@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/localization/app_strings.dart';
+import '../../../authentication/application/auth_controller.dart';
 import '../../../cart/application/cart_controller.dart';
 import '../../../cart/domain/cart_item.dart';
 import '../../../reports/domain/report_models.dart';
@@ -95,6 +96,15 @@ class ProductCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(appStringsProvider);
     final isSoldOut = product.stockQty == 0;
+    // REAL BUG FOUND AND FIXED, live-caught: a Farmer/Vendor toggled
+    // into buyer mode could quick-add their OWN listing to cart from
+    // this card's floating button, with nothing in the UI suggesting
+    // it was their own product -- POST /orders now rejects it
+    // server-side (seller_id === buyer_id), but the button itself was
+    // still shown and tappable. Hidden here, matching the same check
+    // the backend guard uses.
+    final isOwnListing =
+        ref.watch(authControllerProvider).user?.id == product.sellerId;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -176,7 +186,7 @@ class ProductCard extends ConsumerWidget {
                           border: Border.all(color: Colors.white, width: 2)),
                     ),
                   ),
-                if (!isSoldOut)
+                if (!isSoldOut && !isOwnListing)
                   Positioned(
                     bottom: AppSpacing.sm,
                     right: AppSpacing.sm,

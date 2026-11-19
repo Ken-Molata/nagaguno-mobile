@@ -14,6 +14,7 @@ import '../../reviews/presentation/user_reviews_section.dart';
 import '../../conversations/data/conversations_repository.dart';
 import '../../reports/presentation/report_menu_button.dart';
 import '../../reports/domain/report_models.dart';
+import '../../authentication/application/auth_controller.dart';
 import '../../blocks/presentation/block_user_button.dart';
 import '../../marketplace/presentation/product_detail_screen.dart';
 import 'farmers_screen.dart';
@@ -55,6 +56,14 @@ class FarmerDetailScreen extends ConsumerWidget {
     final farmerAsync = ref.watch(_farmerDetailProvider(farmerId));
     final isSavedAsync = ref.watch(_isSavedProvider(farmerId));
     final s = ref.watch(appStringsProvider);
+    // REAL BUG FOUND AND FIXED, live-caught: a Farmer toggled into
+    // buyer mode could open their own profile (/farmers/<their own
+    // id>) and tap "Request" on their own production plans -- POST
+    // /agreements already rejects it server-side, but the button
+    // itself still worked right up to that rejection. Every plan
+    // listed below belongs to `farmerId` by definition, so one check
+    // against the viewed profile covers the whole list.
+    final isOwnProfile = ref.watch(authControllerProvider).user?.id == farmerId;
 
     return Scaffold(
       appBar: AppBar(
@@ -288,7 +297,8 @@ class FarmerDetailScreen extends ConsumerWidget {
                               ),
                             ),
                             TextButton(
-                              onPressed: plan.availableQuantity <= 0
+                              onPressed: (isOwnProfile ||
+                                      plan.availableQuantity <= 0)
                                   ? null
                                   : () => context.push(
                                         '/agreements/new'

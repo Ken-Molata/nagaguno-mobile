@@ -336,14 +336,12 @@ class _CropDemandTile extends StatelessWidget {
     // (crop.isListed == false). routes/demand.js fills one of these
     // from, in order: real platform-wide data (what other sellers
     // currently charge/carry/sell), then a PSA government price
-    // reference when no seller anywhere carries it either (price only
-    // -- no real stock/sales figure exists for a crop nobody here
-    // sells, so availableAmount/projected stay null even though price
-    // is real), and only truly falls back to the plain "Not listed by
-    // you" prompt when neither exists. Three real states, not two, so
-    // this can't just gate on pricePhp alone -- it also can't assume
-    // availableAmount/projected are there just because pricePhp is.
-    if (!crop.isListed && crop.pricePhp == null) {
+    // reference when no seller anywhere carries it either, then (by
+    // explicit product decision) a disclosed category-level demand
+    // estimate even when nothing real exists at all -- so the only
+    // remaining "truly nothing" case is both pricePhp AND projected
+    // quantity null together, not pricePhp alone.
+    if (!crop.isListed && crop.pricePhp == null && crop.projectedWeekly == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
         child: Row(
@@ -379,22 +377,32 @@ class _CropDemandTile extends StatelessWidget {
                     style: AppTypography.body,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
-                Text(
-                    hasStock
-                        ? '${crop.availableAmount!.toStringAsFixed(0)} ${crop.unit} available · ₱${crop.pricePhp!.toStringAsFixed(2)}/${crop.unit}'
-                        : '₱${crop.pricePhp!.toStringAsFixed(2)}/${crop.unit} (reference price)',
-                    style: AppTypography.bodySmall
-                        .copyWith(color: AppColors.textMuted)),
-                // crop.isListed is still false here -- this price is
-                // real, but it's not this seller's own, so the tile
-                // discloses exactly where it came from rather than
-                // implying it's the seller's own listing.
-                if (!crop.isListed) ...[
+                // REAL BUG FOUND AND FIXED: this line assumed
+                // crop.pricePhp was always non-null whenever it's
+                // reached (true before this tile could show a crop
+                // with no real price anywhere) -- now that an unlisted
+                // crop can have an estimated demand quantity with NO
+                // real price at all (e.g. Ampalaya: no seller carries
+                // it, no PSA figure covers it either), that `!` would
+                // have crashed. Price is only ever shown when real.
+                if (crop.pricePhp != null)
+                  Text(
+                      hasStock
+                          ? '${crop.availableAmount!.toStringAsFixed(0)} ${crop.unit} available · ₱${crop.pricePhp!.toStringAsFixed(2)}/${crop.unit}'
+                          : '₱${crop.pricePhp!.toStringAsFixed(2)}/${crop.unit} (reference price)',
+                      style: AppTypography.bodySmall
+                          .copyWith(color: AppColors.textMuted)),
+                // crop.isListed is still false here -- this price (when
+                // there is one) is real, but it's not this seller's
+                // own, so the tile discloses exactly where it came
+                // from rather than implying it's the seller's own
+                // listing. Falls back to demandBasis when there's no
+                // price to disclose a source for at all.
+                if (!crop.isListed &&
+                    (crop.priceSource != null || crop.demandBasis != null)) ...[
                   const SizedBox(height: 2),
                   Text(
-                      crop.priceSource != null
-                          ? 'Not listed by you — ${crop.priceSource}'
-                          : 'Not listed by you — platform-wide data',
+                      'Not listed by you — ${crop.priceSource ?? crop.demandBasis}',
                       style: AppTypography.label
                           .copyWith(color: AppColors.accentDark, fontSize: 10)),
                 ],
@@ -420,7 +428,9 @@ class _CropDemandTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (hasProjection) ...[
-                  Text('${projected!.toStringAsFixed(1)} ${crop.unit}',
+                  Text(
+                      '${projected!.toStringAsFixed(1)} ${crop.unit}'
+                      '${crop.isEstimatedDemand ? ' (est.)' : ''}',
                       style: AppTypography.body
                           .copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),

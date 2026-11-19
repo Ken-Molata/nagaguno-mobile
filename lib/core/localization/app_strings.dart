@@ -722,6 +722,9 @@ class AppStrings {
   String get reviewsLabel => _tl ? 'Mga Review' : 'Reviews';
   String get addToCartLabel => _tl ? 'Idagdag sa Cart' : 'Add to Cart';
   String get placeOrderLabel => _tl ? 'Mag-order' : 'Place Order';
+  String get thisIsYourOwnListing => _tl
+      ? 'Ito ang sarili mong listahan -- hindi ka maaaring mag-order dito.'
+      : 'This is your own listing -- you cannot order from yourself.';
 
   // ── Checkout (lib/features/orders/presentation/checkout_screen.dart) ──
   String get checkoutTitle => _tl ? 'Checkout' : 'Checkout';

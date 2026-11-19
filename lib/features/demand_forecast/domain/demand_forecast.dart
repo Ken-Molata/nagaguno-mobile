@@ -68,6 +68,7 @@ class CropDemandRow {
     required this.isListed,
     this.priceSource,
     this.recommendedPricePhp,
+    this.demandBasis,
   });
 
   final String? productId;
@@ -84,6 +85,21 @@ class CropDemandRow {
   final double? projectedWeekly;
   final double? projectedDaily;
   final CropDemandLevel? demandLevel;
+
+  /// Disclosed provenance for [projectedWeekly]/[projectedDaily] on an
+  /// unlisted row -- either real platform-wide sales data from other
+  /// sellers, or (by explicit product decision, not a default) an even
+  /// split of this seller's own category-level forecast across every
+  /// reference crop with no real per-crop sales data anywhere. Null for
+  /// a listed row (that figure is this seller's own real allocation,
+  /// nothing to disclose) and for an unlisted row from before this was
+  /// added.
+  final String? demandBasis;
+
+  /// True only for the disclosed category-level split estimate, never
+  /// for a real platform-wide figure -- see [demandBasis]'s own
+  /// wording (the backend controls both ends of this string).
+  bool get isEstimatedDemand => demandBasis?.startsWith('Estimated') ?? false;
 
   /// A disclosed RULE-BASED nudge off [demandLevel] (+10% High, -10%
   /// Low, unchanged Moderate) -- not a trained price prediction. There
@@ -134,6 +150,7 @@ class CropDemandRow {
         recommendedPricePhp: json['recommended_price_php'] != null
             ? double.tryParse(json['recommended_price_php'].toString())
             : null,
+        demandBasis: json['demand_basis'] as String?,
       );
 }
 
