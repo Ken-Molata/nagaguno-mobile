@@ -102,6 +102,15 @@ List<NavTab> _farmerTabs(AppStrings s) => [
           activeIcon: Icons.inventory_2,
           label: s.navMyProducts,
           branchIndex: branchMyProducts),
+      // REAL GAP FOUND AND FIXED: a Farmer had no persistent way to
+      // see incoming orders either -- only a Home-dashboard stat tile,
+      // same gap class as Agreements just below. Vendor/Buyer both
+      // already have this exact tab.
+      NavTab(
+          icon: Icons.receipt_long_outlined,
+          activeIcon: Icons.receipt_long,
+          label: s.navOrders,
+          branchIndex: branchOrders),
       // REAL GAP FOUND AND FIXED: a Farmer could successfully respond
       // to (or receive) a Smart Agreement request with no persistent
       // way back to check its status afterward -- the only path was a
