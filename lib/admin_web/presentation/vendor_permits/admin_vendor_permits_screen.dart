@@ -1,9 +1,16 @@
 // lib/admin_web/presentation/vendor_permits/admin_vendor_permits_screen.dart
 //
 // The review queue for routes/vendorPermits.js's business-permit
-// submissions -- same manual-review pattern as KYC Route B. Shows the
-// submitted document (via a short-lived signed URL) and a demo-only
-// cross-check registry an admin can eyeball, never an automated match.
+// submissions -- same manual-review pattern as KYC Route B.
+//
+// The detail dialog uses the SAME two-column "Submitted by the user"
+// / "On record" layout admin_recovery_detail_dialog.dart already
+// established for account recovery, rather than a flat labeled dump
+// of the reference table -- by explicit request: the reference row
+// shown is only ever demo_registered_vendor_registry's data (see that
+// table's own migration comment), but the admin screen itself no
+// longer calls that out in its copy; which rows are real is explained
+// outside the app, not by on-screen disclaimer text.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,17 +81,15 @@ class _VendorPermitDetailDialog extends ConsumerStatefulWidget {
 class _VendorPermitDetailDialogState
     extends ConsumerState<_VendorPermitDetailDialog> {
   String? _documentUrl;
-  List<DemoRegisteredVendor> _demoRegistry = const [];
-  bool _loading = true;
-  // REAL BUG FOUND AND FIXED while live-verifying this screen: a
-  // Future.wait([getAdminDocumentUrl, getDemoRegistry]) meant ONE
-  // failing call (e.g. a document whose storage object is missing --
-  // confirmed live against a real pending submission) discarded BOTH
-  // results, blanking out the demo registry too even though that call
-  // had actually succeeded. Each call now fails independently, so the
-  // admin still sees everything that loaded, with a specific message
-  // only for whichever piece didn't.
   String? _documentError;
+  // The single reference row that matches this submission's
+  // permit_type, if any exists -- not the whole registry. Computed
+  // client-side from the small (handful of rows) registry list;
+  // getDemoRegistry() still returns all of them since that's also
+  // used elsewhere, but this dialog only ever shows the one relevant
+  // to THIS submission.
+  DemoRegisteredVendor? _matchingReference;
+  bool _loading = true;
   String? _error;
 
   @override
@@ -97,7 +102,7 @@ class _VendorPermitDetailDialogState
     final repo = ref.read(vendorPermitsRepositoryProvider);
     String? documentUrl;
     String? documentError;
-    List<DemoRegisteredVendor> demoRegistry = const [];
+    DemoRegisteredVendor? matchingReference;
     String? error;
 
     try {
@@ -106,16 +111,22 @@ class _VendorPermitDetailDialogState
       documentError = 'Document unavailable.';
     }
     try {
-      demoRegistry = await repo.getDemoRegistry();
+      final registry = await repo.getDemoRegistry();
+      for (final v in registry) {
+        if (v.permitType == widget.row.permitType) {
+          matchingReference = v;
+          break;
+        }
+      }
     } catch (_) {
-      error = "Couldn't load the demo registry.";
+      error = "Couldn't load the on-record reference.";
     }
 
     if (mounted) {
       setState(() {
         _documentUrl = documentUrl;
         _documentError = documentError;
-        _demoRegistry = demoRegistry;
+        _matchingReference = matchingReference;
         _error = error;
         _loading = false;
       });
@@ -136,12 +147,15 @@ class _VendorPermitDetailDialogState
     }
   }
 
+  static const _notProvided = 'Not provided (filed before this was required)';
+
   @override
   Widget build(BuildContext context) {
     final row = widget.row;
+    final ref_ = _matchingReference;
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640, maxHeight: 680),
+        constraints: const BoxConstraints(maxWidth: 820, maxHeight: 720),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: _loading
@@ -150,74 +164,90 @@ class _VendorPermitDetailDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      const Expanded(
-                          child: Text('Business Permit Submission',
+                      Expanded(
+                          child: Text('Business Permit Submission — ${row.vendorName}',
                               style: AppTypography.h2)),
                       IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.of(context).pop()),
                     ]),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text('Filed ${_fmt(row.submittedAt)}', style: AppTypography.bodySmall),
+                    if (row.isExpired) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        child: Text(
+                          'The expiry date entered by the vendor has already passed.',
+                          style: AppTypography.bodySmall.copyWith(color: AppColors.error),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.md),
                     Expanded(
                       child: SingleChildScrollView(
-                        child: Column(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _row('Vendor', row.vendorName),
-                            _row('Business name', row.businessName),
-                            _row('Permit type', row.permitTypeLabel),
-                            _row('Permit number', row.permitNumber),
-                            _row('TIN', row.tin ?? 'Not provided (filed before this was required)'),
-                            _row('Business address', row.businessAddress ?? 'Not provided (filed before this was required)'),
-                            _row('Issuing office', row.issuingAuthority ?? 'Not provided (filed before this was required)'),
-                            _row('Date issued', row.dateIssued == null
-                                ? 'Not provided (filed before this was required)'
-                                : _fmt(row.dateIssued!)),
-                            _row('Expiry date', row.expiryDate == null
-                                ? 'Not shown on document'
-                                : _fmt(row.expiryDate!)),
-                            if (row.isExpired) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                                ),
-                                child: Text(
-                                  'The expiry date entered by the vendor has already passed. This is only a date comparison against what they themselves entered -- not a registry check.',
-                                  style: AppTypography.bodySmall.copyWith(color: AppColors.error),
-                                ),
+                            Expanded(
+                              child: _ColumnCard(
+                                title: 'Submitted by the user',
+                                fields: {
+                                  'Business name': row.businessName,
+                                  'Permit type': row.permitTypeLabel,
+                                  'Permit number': row.permitNumber,
+                                  'TIN': row.tin ?? _notProvided,
+                                  'Business address': row.businessAddress ?? _notProvided,
+                                  'Issuing office': row.issuingAuthority ?? _notProvided,
+                                  'Date issued': row.dateIssued == null
+                                      ? _notProvided
+                                      : _fmt(row.dateIssued!),
+                                  'Expiry date': row.expiryDate == null
+                                      ? 'Not shown on document'
+                                      : _fmt(row.expiryDate!),
+                                },
+                                imageUrl: _documentUrl,
+                                imageError: _documentError,
                               ),
-                            ],
-                            const SizedBox(height: AppSpacing.sm),
-                            if (_documentUrl != null)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(AppRadius.sm),
-                                child: Image.network(_documentUrl!,
-                                    height: 220, fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Text(
-                                        'Document could not be displayed (it may be a PDF — open the link directly).')),
-                              )
-                            else if (_documentError != null)
-                              Text(_documentError!,
-                                  style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
-                            const SizedBox(height: AppSpacing.md),
-                            if (_demoRegistry.isNotEmpty) ...[
-                              Text('Demo reference registry (manual cross-check only — not a real registry integration)',
-                                  style: AppTypography.bodySmall
-                                      .copyWith(fontStyle: FontStyle.italic)),
-                              const SizedBox(height: AppSpacing.xs),
-                              ..._demoRegistry.map((v) => Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 2),
-                                    child: Text(
-                                        '${v.businessName} — ${v.permitType} ${v.permitNumber}'
-                                        '${v.tin != null ? ' — TIN ${v.tin}' : ''}'
-                                        '${v.businessAddress != null ? ' — ${v.businessAddress}' : ''}',
-                                        style: AppTypography.bodySmall),
-                                  )),
-                            ],
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: ref_ == null
+                                  ? Container(
+                                      padding: const EdgeInsets.all(AppSpacing.md),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.backgroundStart,
+                                        borderRadius: BorderRadius.circular(AppRadius.md),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('On record', style: AppTypography.h3),
+                                          const SizedBox(height: AppSpacing.sm),
+                                          Text(
+                                            'No on-record reference available for ${row.permitTypeLabel.toLowerCase()}.',
+                                            style: AppTypography.bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : _ColumnCard(
+                                      title: 'On record',
+                                      fields: {
+                                        'Business name': ref_.businessName,
+                                        'Permit type': row.permitTypeLabel,
+                                        'Permit number': ref_.permitNumber,
+                                        'TIN': ref_.tin ?? '—',
+                                        'Business address': ref_.businessAddress ?? '—',
+                                      },
+                                    ),
+                            ),
                           ],
                         ),
                       ),
@@ -259,14 +289,69 @@ class _VendorPermitDetailDialogState
     );
   }
 
-  Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(children: [
-          SizedBox(width: 140, child: Text(label, style: AppTypography.bodySmall)),
-          Expanded(child: Text(value, style: AppTypography.body)),
-        ]),
-      );
-
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+}
+
+/// Same visual shape as account_recovery's own private _ColumnCard --
+/// duplicated locally rather than exported/shared across two unrelated
+/// admin screens for a single small widget.
+class _ColumnCard extends StatelessWidget {
+  const _ColumnCard({
+    required this.title,
+    required this.fields,
+    this.imageUrl,
+    this.imageError,
+  });
+
+  final String title;
+  final Map<String, String> fields;
+  final String? imageUrl;
+  final String? imageError;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTypography.h3),
+          const SizedBox(height: AppSpacing.sm),
+          for (final entry in fields.entries)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                      width: 120,
+                      child: Text(entry.key, style: AppTypography.bodySmall)),
+                  Expanded(child: Text(entry.value, style: AppTypography.body)),
+                ],
+              ),
+            ),
+          if (imageUrl != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Image.network(imageUrl!,
+                  height: 180, width: double.infinity, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Text(
+                      'Document could not be displayed (it may be a PDF — open the link directly).')),
+            ),
+          ] else if (imageError != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(imageError!,
+                style: AppTypography.bodySmall.copyWith(color: AppColors.error)),
+          ],
+        ],
+      ),
+    );
+  }
 }
