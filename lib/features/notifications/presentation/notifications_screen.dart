@@ -138,6 +138,12 @@ class NotificationsScreen extends ConsumerWidget {
                       // path is registered for it in app_router.dart).
                       Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => const MyReportsScreen()));
+                    } else if (n.entityType == 'business_permit') {
+                      // A vendor's permit approved/rejected notification
+                      // (routes/vendorPermits.js's own decide endpoint) --
+                      // opens the same status/resubmit screen reachable
+                      // from Profile > Business Permit.
+                      context.push('/business-permit');
                     }
                   },
                 );

@@ -23,6 +23,7 @@ import 'features/authentication/presentation/register_screen.dart';
 import 'features/marketplace/presentation/marketplace_screen.dart';
 import 'features/marketplace/presentation/product_detail_screen.dart';
 import 'features/kyc/presentation/kyc_screen.dart';
+import 'features/vendor_permits/presentation/business_permit_status_screen.dart';
 import 'features/notifications/presentation/notifications_screen.dart';
 import 'features/farmers/presentation/farmers_screen.dart';
 import 'features/farmers/presentation/farmer_detail_screen.dart';
@@ -253,6 +254,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/kyc', builder: (_, __) => const KycScreen()),
+      GoRoute(
+          path: '/business-permit',
+          builder: (_, __) => const BusinessPermitStatusScreen()),
       GoRoute(path: '/admin', builder: (_, __) => const AdminHomeScreen()),
       GoRoute(
           path: '/notifications',

@@ -206,6 +206,20 @@ class ProfileScreen extends ConsumerWidget {
                   icon: Icons.account_balance_wallet_outlined,
                   title: s.paymentMethods,
                   onTap: () => context.push('/payment-methods')),
+            // REAL GAP FOUND AND FIXED: a Vendor who tapped "I'll do
+            // this later" on the onboarding permit step (or whose
+            // submission was rejected) had no way back to it at all --
+            // the 403 at listing time/a 50kg+ agreement request
+            // (routes/products.js, routes/agreement.js) already said
+            // "Submit one from your profile (Business Permit)", but no
+            // such entry point existed. Vendor-only -- a Farmer sells
+            // their own produce, not resold stock, so isn't subject to
+            // this check (see migrations/057's own header).
+            if (user.isVendor)
+              _ProfileTile(
+                  icon: Icons.storefront_outlined,
+                  title: 'Business Permit',
+                  onTap: () => context.push('/business-permit')),
             // UW 17.5: reachable here even with no active penalty, so
             // someone with a COD restriction (which never forces them
             // to this screen the way a ban/suspension does) can still

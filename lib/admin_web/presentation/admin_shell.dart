@@ -41,6 +41,8 @@ const _navItems = [
   _NavItem('Appeals', Icons.gavel_outlined, '/admin/appeals'),
   _NavItem('Profile Corrections', Icons.edit_note_outlined,
       '/admin/corrections'),
+  _NavItem('Vendor Business Permits', Icons.storefront_outlined,
+      '/admin/vendor-permits'),
   _NavItem('Spoilage Monitoring', Icons.eco_outlined, '/admin/spoilage'),
   _NavItem('Shelf Life Feedback', Icons.rate_review_outlined,
       '/admin/shelf-life-feedback'),

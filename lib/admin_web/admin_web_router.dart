@@ -24,6 +24,7 @@ import 'presentation/platform_reports/admin_platform_reports_screen.dart';
 import 'presentation/feedback/admin_feedback_screen.dart';
 import 'presentation/shelf_life_feedback/admin_shelf_life_feedback_screen.dart';
 import 'presentation/settings/admin_settings_screen.dart';
+import 'presentation/vendor_permits/admin_vendor_permits_screen.dart';
 
 class _AdminAuthChangeNotifier extends ChangeNotifier {
   _AdminAuthChangeNotifier(Ref ref) {
@@ -89,6 +90,9 @@ final adminWebRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
               path: '/admin/corrections',
               builder: (_, __) => const AdminCorrectionsScreen()),
+          GoRoute(
+              path: '/admin/vendor-permits',
+              builder: (_, __) => const AdminVendorPermitsScreen()),
           GoRoute(
               path: '/admin/spoilage',
               builder: (_, __) => const AdminSpoilageScreen()),

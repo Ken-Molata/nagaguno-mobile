@@ -19,6 +19,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/networking/api_client.dart';
 import '../../../core/localization/app_strings.dart';
 import '../../authentication/application/auth_controller.dart';
+import '../../vendor_permits/presentation/business_permit_submission_screen.dart';
 import '../data/preferences_repository.dart';
 import '../domain/preferences.dart';
 
@@ -33,18 +34,33 @@ class OnboardingFlowScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
-  int _step =
-      0; // 0 = welcome, 1 = categories, 2 = discovery (buyer only), 3 = completion
+  // 0 = welcome, 1 = categories, 2 = discovery (buyer only),
+  // 3 = business permit (vendor only), 4 = completion.
+  int _step = 0;
   final Set<String> _selectedCategories = {};
   String? _pricePreference;
   final Set<String> _recommendationPriorities = {};
   bool _submitting = false;
 
   bool get _isBuyer => ref.read(authControllerProvider).user?.isBuyer ?? false;
+  bool get _isVendor =>
+      ref.read(authControllerProvider).user?.isVendor ?? false;
 
   void _next() {
-    if (_step == 1 && !_isBuyer) {
-      _submitAndFinish(); // farmer/vendor skip the discovery step entirely
+    if (_step == 1) {
+      if (_isBuyer) {
+        setState(() => _step = 2);
+        return;
+      }
+      if (_isVendor) {
+        // Vendor accounts resell produce rather than selling what they
+        // grow themselves (routes/vendorPermits.js's own reasoning) --
+        // ask for proof of a real registered business before they can
+        // start listing, right alongside KYC verification.
+        setState(() => _step = 3);
+        return;
+      }
+      _submitAndFinish(); // farmer skips straight to completion
       return;
     }
     setState(() => _step++);
@@ -58,7 +74,7 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
             pricePreference: _pricePreference,
             recommendationPriorities: _recommendationPriorities.toList(),
           );
-      setState(() => _step = 3);
+      setState(() => _step = 4);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -80,6 +96,13 @@ class _OnboardingFlowScreenState extends ConsumerState<OnboardingFlowScreen> {
           0 => _buildWelcome(s),
           1 => _buildCategorySelection(s),
           2 => _buildDiscoveryPreferences(s),
+          // allowSkip: false -- see that parameter's own doc comment.
+          // A Vendor must at least submit (not necessarily be approved
+          // yet) before onboarding can finish, same restriction KYC
+          // already carries at the action level (requireVerified on
+          // routes/products.js, routes/agreement.js).
+          3 => BusinessPermitSubmissionScreen(
+              onDone: _submitAndFinish, allowSkip: false),
           _ => _buildCompletion(s),
         },
       ),

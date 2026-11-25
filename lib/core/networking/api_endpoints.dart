@@ -408,4 +408,18 @@ class ApiEndpoints {
   // CF data yet. See routes/recommendation.js's GET /similar/:product_id.
   static String recommendationsSimilar(String productId) =>
       '/recommendations/similar/$productId';
+
+  // Vendor business permits — separate from KYC (personal identity);
+  // verifies business legitimacy for the Vendor role specifically. See
+  // routes/vendorPermits.js's own header for the full reasoning.
+  static const vendorPermitsReference = '/vendor-permits/reference';
+  static const vendorPermitsMine = '/vendor-permits/my';
+  static const vendorPermitsSubmit = '/vendor-permits';
+  static const vendorPermitsAdminQueue = '/vendor-permits/admin';
+  static String vendorPermitsAdminDocument(String id) =>
+      '/vendor-permits/admin/$id/document';
+  static const vendorPermitsAdminDemoRegistry =
+      '/vendor-permits/admin/demo-registry';
+  static String vendorPermitsAdminDecide(String id) =>
+      '/vendor-permits/admin/$id/decide';
 }
