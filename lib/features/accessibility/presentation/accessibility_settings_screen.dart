@@ -37,11 +37,15 @@ import '../application/accessibility_settings.dart';
 final _profileRepositoryProvider = Provider<ProfileRepository>(
     (ref) => ProfileRepository(ref.watch(apiClientProvider)));
 
+// Keys are the stored data values (unchanged -- the backend's CHECK
+// constraint and every existing user's saved preference still expect
+// exactly these 4 strings); only the display labels were renamed, by
+// rank, to the conventional Small/Default/Large/Extra Large ladder.
 Map<String, String> _textSizeLabels(AppStrings s) => {
-      'standard': s.textSizeStandard,
-      'large': s.textSizeLarge,
-      'extra_large': s.textSizeExtraLarge,
-      'maximum': s.textSizeMaximum,
+      'standard': s.textSizeSmall,
+      'large': s.textSizeDefault,
+      'extra_large': s.textSizeLarge,
+      'maximum': s.textSizeExtraLarge,
     };
 
 class AccessibilitySettingsScreen extends ConsumerStatefulWidget {

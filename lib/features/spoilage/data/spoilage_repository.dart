@@ -1,5 +1,6 @@
 // lib/features/spoilage/data/spoilage_repository.dart
 
+import 'package:dio/dio.dart';
 import '../../../core/networking/api_client.dart';
 import '../../../core/networking/api_endpoints.dart';
 import '../domain/spoilage_listing.dart';
@@ -78,4 +79,58 @@ class SpoilageRepository {
       data: {'action': accept ? 'accept' : 'dismiss'},
     );
   }
+
+  /// Puts an auto-hidden-for-spoilage listing back live on the
+  /// seller's own say-so — 409s if the listing isn't actually hidden
+  /// for a spoilage reason (an admin moderation hide has its own
+  /// separate flow this never touches).
+  Future<void> unhide(String productId) async {
+    await _client.dio.post(ApiEndpoints.spoilageUnhide(productId));
+  }
+
+  /// Which crops the server-side freshness model actually covers —
+  /// fetched, not bundled on-device (see freshness_classifier.dart's
+  /// removal: on-device TFLite inference was abandoned after a real,
+  /// confirmed Gradle plugin bug made it unbuildable; the model now
+  /// runs in ml-service instead). Callers should only offer the
+  /// photo-freshness-check entry point for a listing matching one of
+  /// these.
+  Future<List<String>> getFreshnessCoveredCrops() async {
+    final response =
+        await _client.dio.get(ApiEndpoints.spoilageFreshnessModelInfo);
+    return (response.data['data']['covered_crops'] as List).cast<String>();
+  }
+
+  /// Uploads a photo for the server-side freshness model
+  /// (photo_freshness_check_screen.dart) to classify AND apply in one
+  /// call — the backend computes remaining_pct/stage itself from the
+  /// photo (never trusts a client-supplied value) and applies it the
+  /// same way [reportSpoilage] applies a dropdown choice, just tagged
+  /// source='cv' with the evidence photo attached. Unlike
+  /// [reportSpoilage] (which deliberately excludes 'fresh'), the
+  /// server's result can correct the automatic estimate toward LESS
+  /// spoiled too, which a seller-initiated dropdown report never
+  /// could. Returns the server's own (stage, remainingPct) for the UI
+  /// to display.
+  Future<CvOverrideResult> applyCvOverride(
+    String productId, {
+    required String photoPath,
+  }) async {
+    final formData = FormData.fromMap({
+      'photo': await MultipartFile.fromFile(photoPath),
+    });
+    final response = await _client.dio
+        .post(ApiEndpoints.spoilageCvOverride(productId), data: formData);
+    final data = response.data['data'] as Map<String, dynamic>;
+    return CvOverrideResult(
+      stage: data['stage'] as String,
+      remainingPct: double.tryParse(data['remaining_pct'].toString()) ?? 0,
+    );
+  }
+}
+
+class CvOverrideResult {
+  const CvOverrideResult({required this.stage, required this.remainingPct});
+  final String stage;
+  final double remainingPct;
 }

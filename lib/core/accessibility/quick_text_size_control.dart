@@ -44,11 +44,18 @@ import '../../features/accessibility/application/accessibility_settings.dart';
 import '../../features/profile/data/profile_repository.dart';
 import 'pre_login_text_scale.dart';
 
+// Keys are the stored data values (unchanged); labels renamed by rank
+// to the conventional Small/Default/Large/Extra Large ladder, same as
+// accessibility_settings_screen.dart's full Settings-page equivalent.
+// Deliberately not localized via AppStrings the way that screen is --
+// this control renders pre-login too (see this file's own header),
+// where AppStrings' own language source (the account's saved
+// preference) isn't available yet.
 const _textSizeLabels = {
-  'standard': 'Standard',
-  'large': 'Large',
-  'extra_large': 'Extra Large',
-  'maximum': 'Maximum',
+  'standard': 'Small',
+  'large': 'Default',
+  'extra_large': 'Large',
+  'maximum': 'Extra Large',
 };
 
 final _profileRepositoryProvider = Provider<ProfileRepository>(

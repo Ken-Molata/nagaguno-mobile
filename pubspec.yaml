@@ -55,6 +55,29 @@ dependencies:
   # actually agree on, rather than re-guessing a second time.
   google_mlkit_commons: any
 
+  # Produce FRESHNESS check (distinct from produce_classifier.dart's
+  # generic "is this even a crop photo" check above) runs SERVER-SIDE
+  # (ml-service/'s new /predict-freshness, via routes/spoilage.js's
+  # POST /cv-override/:productId), not on-device -- tried on-device
+  # first (tflite_core, the maintained continuation of tflite_flutter),
+  # but its android/build.gradle has a real bug (a `kotlin {
+  # compilerOptions {...} }` DSL block with no `apply plugin:
+  # 'org.jetbrains.kotlin.android'` anywhere in the file, so Gradle has
+  # no `kotlin {}` extension registered -- "Could not find method
+  # kotlin()"), confirmed in BOTH 0.12.11 and 0.12.12 by actually
+  # reproducing the build failure, not just reading about it. The
+  # official Google replacement (flutter_litert) fixes that exact bug
+  # correctly but ships an entirely different, substantially more
+  # complex API (LiteRT Next, Play-Services/NPU runtime options) not
+  # worth adopting for one single-input/single-output regression model.
+  # Running inference server-side instead sidesteps the broken Flutter
+  # native-plugin ecosystem entirely, is consistent with how this app's
+  # OTHER models (demand forecast, price recommendation) already run
+  # (ml-service, not on-device), and closes a real security gap the
+  # on-device design had: the backend would otherwise have had to
+  # trust whatever stage/remaining_pct a (possibly modified) client
+  # claimed, rather than computing it itself from the photo.
+
   # Routing
   go_router: ^14.2.0
 

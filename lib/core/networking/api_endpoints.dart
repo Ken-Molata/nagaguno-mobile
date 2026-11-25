@@ -312,6 +312,11 @@ class ApiEndpoints {
   static String spoilageSale(String productId) => '/spoilage/sale/$productId';
   static String spoilageRecommendationRespond(String id) =>
       '/spoilage/recommendations/$id/respond';
+  static String spoilageUnhide(String productId) =>
+      '/spoilage/unhide/$productId';
+  static String spoilageCvOverride(String productId) =>
+      '/spoilage/cv-override/$productId';
+  static const spoilageFreshnessModelInfo = '/spoilage/freshness-model-info';
   static const spoilageDashboard = '/spoilage/dashboard'; // admin
 
   // Notifications

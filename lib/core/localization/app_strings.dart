@@ -385,10 +385,20 @@ class AppStrings {
       ? 'Preview: Ganito ang text ng NagaGuno sa sukat na ito.'
       : 'Preview: NagaGuno text at this size.';
   String get textSize => _tl ? 'Sukat ng Text' : 'Text Size';
-  String get textSizeStandard => _tl ? 'Standard' : 'Standard';
+  // REAL GAP FOUND AND FIXED, by explicit request: the original 4
+  // names (Standard/Large/Extra Large/Maximum) read as informal/odd --
+  // renamed to the conventional 4-rung ladder every OS text-size
+  // setting already uses (Small/Default/Large/Extra Large), mapped by
+  // RANK onto the same 4 existing data values (standard/large/
+  // extra_large/maximum, unchanged -- these are the stored enum
+  // values, not display text, and still match what the backend's
+  // CHECK constraint and every stored user preference already expect).
+  // Getter names renamed to match what they now actually return, not
+  // left pointing at a name that no longer describes the label.
+  String get textSizeSmall => _tl ? 'Maliit' : 'Small';
+  String get textSizeDefault => _tl ? 'Karaniwan' : 'Default';
   String get textSizeLarge => _tl ? 'Malaki' : 'Large';
   String get textSizeExtraLarge => _tl ? 'Mas Malaki' : 'Extra Large';
-  String get textSizeMaximum => _tl ? 'Pinakamalaki' : 'Maximum';
   String get highContrast => _tl ? 'Mataas na Contrast' : 'High Contrast';
   String get highContrastSubtitle => _tl
       ? 'Mas maitim na text, mas matingkad na border, at plain na background.'

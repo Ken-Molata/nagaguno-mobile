@@ -41,11 +41,14 @@ import '../../application/admin_auth_controller.dart';
 final _profileRepositoryProvider = Provider<ProfileRepository>(
     (ref) => ProfileRepository(ref.watch(apiClientProvider)));
 
+// Keys are the stored data values (unchanged); labels renamed by rank
+// to the conventional Small/Default/Large/Extra Large ladder, same as
+// accessibility_settings_screen.dart's mobile equivalent.
 const _textSizeLabels = {
-  'standard': 'Standard',
-  'large': 'Large',
-  'extra_large': 'Extra Large',
-  'maximum': 'Maximum',
+  'standard': 'Small',
+  'large': 'Default',
+  'extra_large': 'Large',
+  'maximum': 'Extra Large',
 };
 
 class AdminSettingsScreen extends ConsumerStatefulWidget {

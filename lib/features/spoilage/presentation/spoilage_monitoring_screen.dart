@@ -11,12 +11,20 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/networking/api_client.dart';
 import '../data/spoilage_repository.dart';
 import '../domain/spoilage_listing.dart';
+import 'photo_freshness_check_screen.dart';
 
 final spoilageRepositoryProvider = Provider<SpoilageRepository>(
     (ref) => SpoilageRepository(ref.watch(apiClientProvider)));
 final spoilageListingsProvider =
     FutureProvider.autoDispose<List<SpoilageListing>>(
         (ref) => ref.watch(spoilageRepositoryProvider).getMyListings());
+
+/// Which crops the server-side freshness model actually covers --
+/// fetched once per session, not bundled on-device (see
+/// photo_freshness_check_screen.dart's header for why on-device
+/// inference was abandoned).
+final freshnessCoveredCropsProvider = FutureProvider<List<String>>(
+    (ref) => ref.watch(spoilageRepositoryProvider).getFreshnessCoveredCrops());
 
 class SpoilageMonitoringScreen extends ConsumerWidget {
   const SpoilageMonitoringScreen({super.key});
@@ -84,11 +92,26 @@ class _ListingCard extends ConsumerWidget {
   final Color Function(String?) stageColor;
 
   Future<void> _showReportDialog(BuildContext context, WidgetRef ref) async {
-    final stage = await showDialog<String>(
+    // Only offered when the server-side freshness model actually has
+    // real training data behind this listing's own crop -- see
+    // photo_freshness_check_screen.dart's own header for why a photo
+    // can correct the automatic estimate in either direction, not just
+    // the dropdown's "more spoiled" one.
+    String? matchedCrop;
+    final coveredCropsAsync = ref.read(freshnessCoveredCropsProvider);
+    coveredCropsAsync.whenData((coveredCrops) {
+      matchedCrop = resolveCoveredCrop(listing.name, coveredCrops);
+    });
+
+    final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
         title: const Text('Report Spoilage Status'),
         children: [
+          if (matchedCrop != null)
+            SimpleDialogOption(
+                onPressed: () => Navigator.of(dialogContext).pop('cv_photo'),
+                child: const Text('Verify with Photo (recommended)')),
           SimpleDialogOption(
               onPressed: () => Navigator.of(dialogContext).pop('near_spoilage'),
               child: const Text('Near Spoilage')),
@@ -101,11 +124,24 @@ class _ListingCard extends ConsumerWidget {
         ],
       ),
     );
-    if (stage == null) return;
+    if (choice == null) return;
+
+    if (choice == 'cv_photo') {
+      if (matchedCrop == null || !context.mounted) return;
+      final applied = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => PhotoFreshnessCheckScreen(
+              listing: listing, matchedCrop: matchedCrop!),
+        ),
+      );
+      if (applied == true) ref.invalidate(spoilageListingsProvider);
+      return;
+    }
+
     try {
       await ref
           .read(spoilageRepositoryProvider)
-          .reportSpoilage(listing.productId, stage);
+          .reportSpoilage(listing.productId, choice);
       ref.invalidate(spoilageListingsProvider);
     } catch (_) {
       if (context.mounted) {
@@ -279,7 +315,13 @@ class _ListingCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final color = stageColor(listing.stage);
+    // REAL GAP FOUND AND FIXED: this card only ever rendered a LIVE
+    // listing's stage/percentage -- a hidden-for-spoilage listing (now
+    // surfaced by GET /spoilage/my-listings alongside the live ones,
+    // see that route's own comment) had no distinct rendering at all,
+    // so the user asked for explicitly: a "Hidden" label, how many days
+    // past its own shelf life it is, and a way to undo it.
+    final color = listing.isHidden ? AppColors.spoilageExpired : stageColor(listing.stage);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -300,18 +342,42 @@ class _ListingCard extends ConsumerWidget {
               Expanded(
                   child: Text(listing.name,
                       style: AppTypography.h3.copyWith(fontSize: 15))),
-              Text((listing.stage ?? 'unknown').toUpperCase(),
+              Text(
+                  listing.isHidden
+                      ? 'HIDDEN'
+                      : (listing.stage ?? 'unknown').toUpperCase(),
                   style: AppTypography.label.copyWith(color: color)),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          // remaining_pct is a real fraction (0-1) -- ×100 for display, same conversion discipline as the discount field elsewhere.
-          Text(
-              '${(listing.remainingPct * 100).toStringAsFixed(0)}% of shelf life remaining',
-              style: AppTypography.bodySmall),
+          if (listing.isHidden) ...[
+            Text(
+                '${listing.autoHiddenReason ?? 'Spoilage'} -- '
+                '${listing.daysOverdue ?? 0} day${(listing.daysOverdue ?? 0) == 1 ? '' : 's'} past its '
+                '${listing.shelfLifeDays ?? '?'}-day shelf life',
+                style: AppTypography.bodySmall),
+            if (listing.manualSpoilageSource == 'cv' &&
+                listing.manualSpoilagePhotoUrl != null) ...[
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Image.network(listing.manualSpoilagePhotoUrl!,
+                    height: 100, fit: BoxFit.cover),
+              ),
+            ],
+          ] else ...[
+            // remaining_pct is a real fraction (0-1) -- ×100 for display, same conversion discipline as the discount field elsewhere.
+            Text(
+                '${(listing.remainingPct * 100).toStringAsFixed(0)}% of shelf life remaining '
+                '(${listing.daysElapsed ?? '?'} of ${listing.shelfLifeDays ?? '?'} days elapsed)',
+                style: AppTypography.bodySmall),
+          ],
           if (listing.isManuallyReported) ...[
             const SizedBox(height: 4),
-            Text('Manually reported',
+            Text(
+                listing.manualSpoilageSource == 'cv'
+                    ? 'Verified with photo'
+                    : 'Manually reported',
                 style:
                     AppTypography.label.copyWith(color: AppColors.accentDark)),
           ],
@@ -401,28 +467,49 @@ class _ListingCard extends ConsumerWidget {
           ],
 
           const SizedBox(height: AppSpacing.sm),
-          Row(children: [
-            Expanded(
-                child: OutlinedButton(
-                    onPressed: () => _showReportDialog(context, ref),
-                    child: const Text('Report Spoilage'))),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: listing.hasActiveSellerDiscount
-                  ? OutlinedButton(
-                      onPressed: () => _removeSale(context, ref),
-                      style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.error),
-                          foregroundColor: AppColors.error),
-                      child: const Text('Remove Discount'),
-                    )
-                  : OutlinedButton(
-                      onPressed: () => _showSaleDialog(context, ref),
-                      child: const Text('Start a Sale')),
-            ),
-          ]),
+          if (listing.isHidden)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _unhide(context, ref),
+                child: const Text('Unhide This Listing'),
+              ),
+            )
+          else
+            Row(children: [
+              Expanded(
+                  child: OutlinedButton(
+                      onPressed: () => _showReportDialog(context, ref),
+                      child: const Text('Report Spoilage'))),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: listing.hasActiveSellerDiscount
+                    ? OutlinedButton(
+                        onPressed: () => _removeSale(context, ref),
+                        style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.error),
+                            foregroundColor: AppColors.error),
+                        child: const Text('Remove Discount'),
+                      )
+                    : OutlinedButton(
+                        onPressed: () => _showSaleDialog(context, ref),
+                        child: const Text('Start a Sale')),
+              ),
+            ]),
         ],
       ),
     );
+  }
+
+  Future<void> _unhide(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(spoilageRepositoryProvider).unhide(listing.productId);
+      ref.invalidate(spoilageListingsProvider);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Couldn\'t unhide this listing. Please try again.')));
+      }
+    }
   }
 }

@@ -31,11 +31,14 @@ import '../domain/walkthrough_step.dart';
 final _profileRepositoryProvider = Provider<ProfileRepository>(
     (ref) => ProfileRepository(ref.watch(apiClientProvider)));
 
+// Keys are the stored data values (unchanged); labels renamed by rank
+// to the conventional Small/Default/Large/Extra Large ladder, same as
+// accessibility_settings_screen.dart's full Settings-page equivalent.
 Map<String, String> _textSizeLabels(AppStrings s) => {
-      'standard': s.textSizeStandard,
-      'large': s.textSizeLarge,
-      'extra_large': s.textSizeExtraLarge,
-      'maximum': s.textSizeMaximum,
+      'standard': s.textSizeSmall,
+      'large': s.textSizeDefault,
+      'extra_large': s.textSizeLarge,
+      'maximum': s.textSizeExtraLarge,
     };
 
 class WalkthroughScreen extends ConsumerStatefulWidget {

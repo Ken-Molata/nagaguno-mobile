@@ -94,6 +94,11 @@ class SpoilageListing {
     this.shelfLifeDays,
     this.recommendation,
     this.sellerDiscount,
+    this.isHidden = false,
+    this.daysOverdue,
+    this.autoHiddenReason,
+    this.manualSpoilageSource,
+    this.manualSpoilagePhotoUrl,
   });
 
   final String productId;
@@ -113,6 +118,28 @@ class SpoilageListing {
   final int? shelfLifeDays;
   final SpoilageRecommendation? recommendation;
   final ActiveSellerDiscount? sellerDiscount;
+
+  /// True for a listing GET /spoilage/my-listings surfaces separately
+  /// from product_spoilage_status (which only ever includes status =
+  /// 'live' rows) -- an auto-hidden-for-spoilage product the seller
+  /// can still see and act on (unhide, or re-check with a fresher
+  /// photo) instead of it just vanishing from this screen.
+  final bool isHidden;
+
+  /// Days past this listing's own shelf-life window -- only set when
+  /// [isHidden] is true (a still-live listing's severity is already
+  /// fully described by [remainingPct]/[stage]).
+  final int? daysOverdue;
+  final String? autoHiddenReason;
+
+  /// 'dropdown' | 'cv' | null -- which path produced the current
+  /// manual_spoilage_stage, if any. Null for a purely time-computed
+  /// listing that's never been manually reported at all.
+  final String? manualSpoilageSource;
+
+  /// Set only when [manualSpoilageSource] == 'cv' -- the evidence photo
+  /// the on-device freshness model actually classified.
+  final String? manualSpoilagePhotoUrl;
 
   bool get hasActiveSellerDiscount => sellerDiscount?.active == true;
 
@@ -136,6 +163,13 @@ class SpoilageListing {
       sellerDiscount: json['seller_discount'] != null
           ? ActiveSellerDiscount.fromJson(json['seller_discount'])
           : null,
+      isHidden: json['is_hidden'] as bool? ?? false,
+      daysOverdue: json['days_overdue'] != null
+          ? int.tryParse(json['days_overdue'].toString())
+          : null,
+      autoHiddenReason: json['auto_hidden_reason'] as String?,
+      manualSpoilageSource: json['manual_spoilage_source'] as String?,
+      manualSpoilagePhotoUrl: json['manual_spoilage_photo_url'] as String?,
     );
   }
 }
