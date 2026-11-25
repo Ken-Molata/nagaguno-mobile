@@ -91,64 +91,49 @@ class _ListingCard extends ConsumerWidget {
   final SpoilageListing listing;
   final Color Function(String?) stageColor;
 
+  // REAL BEHAVIOR CHANGE, BY EXPLICIT REQUEST: the manual Near
+  // Spoilage/Critical/Expired dropdown has been removed from this
+  // screen entirely -- the only way to override the calendar-computed
+  // stage is now the photo-verified CV model, never a bare, unverified
+  // seller claim. A listing whose crop the model was never trained on
+  // (only Ampalaya, Banana, Cucumber, Eggplant, Orange, Papaya,
+  // Pineapple, Tomato are covered -- see freshness_model_info.json)
+  // has no override path at all: its spoilage status is purely the
+  // calendar-based automatic stage from Part I, never seller-reported.
+  // routes/spoilage.js's POST /report/:productId backend endpoint and
+  // SpoilageRepository.reportSpoilage() are deliberately left in place
+  // (not deleted) -- this is a UI-entry-point change, not a decision
+  // to remove that backend capability.
   Future<void> _showReportDialog(BuildContext context, WidgetRef ref) async {
-    // Only offered when the server-side freshness model actually has
-    // real training data behind this listing's own crop -- see
-    // photo_freshness_check_screen.dart's own header for why a photo
-    // can correct the automatic estimate in either direction, not just
-    // the dropdown's "more spoiled" one.
-    String? matchedCrop;
     final coveredCropsAsync = ref.read(freshnessCoveredCropsProvider);
-    coveredCropsAsync.whenData((coveredCrops) {
-      matchedCrop = resolveCoveredCrop(listing.name, coveredCrops);
-    });
+    final coveredCrops = coveredCropsAsync.valueOrNull ?? const [];
+    final matchedCrop = resolveCoveredCrop(listing.name, coveredCrops);
 
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: const Text('Report Spoilage Status'),
-        children: [
-          if (matchedCrop != null)
-            SimpleDialogOption(
-                onPressed: () => Navigator.of(dialogContext).pop('cv_photo'),
-                child: const Text('Verify with Photo (recommended)')),
-          SimpleDialogOption(
-              onPressed: () => Navigator.of(dialogContext).pop('near_spoilage'),
-              child: const Text('Near Spoilage')),
-          SimpleDialogOption(
-              onPressed: () => Navigator.of(dialogContext).pop('critical'),
-              child: const Text('Critical')),
-          SimpleDialogOption(
-              onPressed: () => Navigator.of(dialogContext).pop('expired'),
-              child: const Text('Expired')),
-        ],
-      ),
-    );
-    if (choice == null) return;
-
-    if (choice == 'cv_photo') {
-      if (matchedCrop == null || !context.mounted) return;
-      final applied = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => PhotoFreshnessCheckScreen(
-              listing: listing, matchedCrop: matchedCrop!),
+    if (matchedCrop == null) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Photo Verification Not Available'),
+          content: Text(
+              'Photo-verified freshness checking isn\'t available for "${listing.name}" yet. '
+              'It currently only covers: ${coveredCrops.isEmpty ? 'Ampalaya, Banana, Cucumber, Eggplant, Orange, Papaya, Pineapple, Tomato' : coveredCrops.join(', ')}.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK')),
+          ],
         ),
       );
-      if (applied == true) ref.invalidate(spoilageListingsProvider);
       return;
     }
 
-    try {
-      await ref
-          .read(spoilageRepositoryProvider)
-          .reportSpoilage(listing.productId, choice);
-      ref.invalidate(spoilageListingsProvider);
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Couldn\'t report spoilage. Please try again.')));
-      }
-    }
+    final applied = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            PhotoFreshnessCheckScreen(listing: listing, matchedCrop: matchedCrop),
+      ),
+    );
+    if (applied == true) ref.invalidate(spoilageListingsProvider);
   }
 
   static const _discountLabels = {
@@ -480,7 +465,7 @@ class _ListingCard extends ConsumerWidget {
               Expanded(
                   child: OutlinedButton(
                       onPressed: () => _showReportDialog(context, ref),
-                      child: const Text('Report Spoilage'))),
+                      child: const Text('Verify Freshness'))),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: listing.hasActiveSellerDiscount
