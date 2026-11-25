@@ -118,9 +118,21 @@ class AdminShell extends ConsumerWidget {
                         child: ListView(
                       padding: EdgeInsets.zero,
                       children: _navItems.map((item) {
+                        // REAL BUG FOUND AND FIXED: plain startsWith made
+                        // /admin/kyc-routes also match the /admin/kyc nav
+                        // item (a prefix of it), highlighting both
+                        // "Verification Queue" and "KYC Route Table" at
+                        // once. Dashboard keeps its own exact-match special
+                        // case (every other route also starts with
+                        // '/admin', so it would otherwise stay highlighted
+                        // everywhere); every other item now matches
+                        // exactly or on a '/'-bounded prefix, for a nested
+                        // detail route -- none of these currently have
+                        // one, but that's the correct general rule.
                         final selected = item.path == '/admin'
                             ? currentPath == '/admin'
-                            : currentPath.startsWith(item.path);
+                            : currentPath == item.path ||
+                                currentPath.startsWith('${item.path}/');
                         return ListTile(
                           leading: Icon(item.icon,
                               color: selected

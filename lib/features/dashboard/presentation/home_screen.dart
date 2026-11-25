@@ -17,6 +17,7 @@ import '../../authentication/application/auth_controller.dart';
 import '../../buyer_mode/presentation/widgets/buyer_mode_banner.dart';
 import '../../buyer_mode/presentation/widgets/buyer_mode_pill.dart';
 import '../../conversations/presentation/widgets/messages_icon_button.dart';
+import '../../notifications/presentation/widgets/notifications_icon_button.dart';
 import '../../demand_forecast/presentation/demand_forecast_widget.dart';
 import '../../analytics/presentation/sales_analytics_screen.dart';
 import '../../analytics/presentation/transaction_history_screen.dart';
@@ -117,6 +118,7 @@ class HomeScreen extends ConsumerWidget {
                   // same unread-badge pattern CartIconButton already
                   // uses elsewhere.
                   const MessagesIconButton(color: Colors.white),
+                  const NotificationsIconButton(color: Colors.white),
                   // Sized to roughly span the greeting block's own
                   // height (title + weather line) rather than the
                   // smaller fixed badge used elsewhere (Login/Register/
