@@ -183,12 +183,6 @@ class _KycSubmissionScreenState extends ConsumerState<KycSubmissionScreen> {
 
   bool get _isRouteB => _effectiveRoute == 'B';
 
-  /// UW 10's document list: "For Vendors: Business Permit (required)"
-  /// vs. a Farmer's two supporting documents, "optional but
-  /// recommended." REAL GAP FOUND AND FIXED: this distinction didn't
-  /// exist anywhere on this screen at all.
-  bool get _isVendor => ref.read(authControllerProvider).user?.isVendor ?? false;
-
   Future<void> _submit() async {
     final s = ref.read(appStringsProvider);
     if (!_formKey.currentState!.validate()) return;
@@ -221,13 +215,17 @@ class _KycSubmissionScreenState extends ConsumerState<KycSubmissionScreen> {
         return;
       }
     }
-    // UW 10: "For Vendors: Business Permit (required)" -- not
-    // route-gated, unlike the three checks above (supporting documents
-    // are uploaded under both routes).
-    if (_isVendor && _isFlagged('supporting_doc') && _supportingDocPath == null) {
-      setState(() => _errorMessage = s.pleaseUploadBusinessPermitError);
-      return;
-    }
+    // REAL BUG FOUND AND FIXED: this used to hard-require a Vendor to
+    // upload a "Business Permit" photo here as a bare KYC supporting
+    // document before KYC could even submit (blocking Route A's Didit
+    // redirect too) -- live-confirmed to block submission even with
+    // every other field correctly filled in. The dedicated vendor
+    // business-permit system (routes/vendorPermits.js, reached from
+    // onboarding/Profile, not this screen) now handles business-
+    // legitimacy verification far more thoroughly and is deliberately
+    // independent of KYC (personal identity). See routes/kyc.js's own
+    // matching fix for the full reasoning -- this field is optional
+    // for every role now, same as it always was for a Farmer.
 
     setState(() {
       _submitting = true;
@@ -562,16 +560,17 @@ class _KycSubmissionScreenState extends ConsumerState<KycSubmissionScreen> {
                   ),
                 // UW 10: "Supporting documents are uploaded to NagaGuno
                 // directly under both routes... reviewed by the Admin
-                // only." Shown regardless of route -- see this
-                // screen's own header comment and _isVendor's for the
-                // real gap this closes.
+                // only." Shown regardless of route. Optional for every
+                // role, including Vendor -- see this screen's own
+                // header comment on why the old Vendor-specific
+                // "Business Permit required here too" requirement was
+                // removed (the dedicated vendor-permit system now
+                // owns that, entirely separately from KYC).
                 if (_isFlagged('supporting_doc')) ...[
                   const SizedBox(height: AppSpacing.sm),
                   _buildUploadTile(
                     s,
-                    label: _isVendor
-                        ? s.businessPermitLabel
-                        : s.supportingDocumentOptionalLabel,
+                    label: s.supportingDocumentOptionalLabel,
                     path: _supportingDocPath,
                     onTap: () => _pickImage((p) => _supportingDocPath = p),
                   ),

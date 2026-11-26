@@ -79,60 +79,76 @@ class HomeScreen extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.lg),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            '$greeting, ${user.fullName.split(' ').first}!',
-                            style: AppTypography.display.copyWith(
-                                fontSize: 26, color: Colors.white)),
-                        // Weather chip -- a nice-to-have, never blocking:
-                        // simply absent (not an error message, not a
-                        // loading spinner that lingers) if the fetch
-                        // fails or hasn't resolved yet.
-                        weatherAsync.maybeWhen(
-                          data: (weather) => weather == null
-                              ? const SizedBox.shrink()
-                              : Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    '${weather.icon} ${weather.description} · ${weather.temperatureC.round()}°C in Naga City',
-                                    style: AppTypography.bodySmall.copyWith(
-                                        color: Colors.white70),
-                                  ),
-                                ),
-                          orElse: () => const SizedBox.shrink(),
-                        ),
-                      ],
-                    ),
+                  // REAL LAYOUT FIX, BY EXPLICIT REQUEST: Messages and
+                  // Notifications used to sit inline with the logo and
+                  // the Farmer/Vendor mode pill, crowding that row.
+                  // Pulled into their own top-right utility row instead
+                  // -- the logo/pill row below now has only what it
+                  // always had room for.
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // REAL GAP FOUND AND FIXED: the only way to reach
+                      // the conversations list (UW 13's Messenger-style
+                      // thread collection) was buried in Profile --
+                      // added here too for quick access straight from
+                      // Home, same unread-badge pattern CartIconButton
+                      // already uses elsewhere.
+                      const MessagesIconButton(color: Colors.white),
+                      const NotificationsIconButton(color: Colors.white),
+                    ],
                   ),
-                  // REAL GAP FOUND AND FIXED: the only way to reach
-                  // the conversations list (UW 13's Messenger-style
-                  // thread collection) was buried in Profile -- added
-                  // here too for quick access straight from Home,
-                  // same unread-badge pattern CartIconButton already
-                  // uses elsewhere.
-                  const MessagesIconButton(color: Colors.white),
-                  const NotificationsIconButton(color: Colors.white),
-                  // Sized to roughly span the greeting block's own
-                  // height (title + weather line) rather than the
-                  // smaller fixed badge used elsewhere (Login/Register/
-                  // Checkout headers, where it sits beside a single
-                  // short line) -- vertically centered against it via
-                  // the Row's own crossAxisAlignment above.
-                  const NagaGunoBadge(size: 64),
-                  // UW 1.5: visible only to Farmer/Vendor accounts --
-                  // Buyers have nothing to switch between.
-                  if (user.isFarmer || user.isVendor) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    BuyerModePill(
-                        ownRoleLabel: user.isFarmer ? s.farmer : s.vendor),
-                  ],
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                '$greeting, ${user.fullName.split(' ').first}!',
+                                style: AppTypography.display.copyWith(
+                                    fontSize: 26, color: Colors.white)),
+                            // Weather chip -- a nice-to-have, never blocking:
+                            // simply absent (not an error message, not a
+                            // loading spinner that lingers) if the fetch
+                            // fails or hasn't resolved yet.
+                            weatherAsync.maybeWhen(
+                              data: (weather) => weather == null
+                                  ? const SizedBox.shrink()
+                                  : Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        '${weather.icon} ${weather.description} · ${weather.temperatureC.round()}°C in Naga City',
+                                        style: AppTypography.bodySmall
+                                            .copyWith(color: Colors.white70),
+                                      ),
+                                    ),
+                              orElse: () => const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Sized to roughly span the greeting block's own
+                      // height (title + weather line) rather than the
+                      // smaller fixed badge used elsewhere (Login/Register/
+                      // Checkout headers, where it sits beside a single
+                      // short line) -- vertically centered against it via
+                      // the Row's own crossAxisAlignment above.
+                      const NagaGunoBadge(size: 64),
+                      // UW 1.5: visible only to Farmer/Vendor accounts --
+                      // Buyers have nothing to switch between.
+                      if (user.isFarmer || user.isVendor) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        BuyerModePill(
+                            ownRoleLabel: user.isFarmer ? s.farmer : s.vendor),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -268,8 +284,8 @@ class _FarmerHome extends ConsumerWidget {
           ], onTaps: [
             () => context.push('/agreements'),
             () => context.push('/orders'),
-            () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SalesAnalyticsScreen())),
+            () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SalesAnalyticsScreen())),
           ]),
           const SizedBox(height: AppSpacing.md),
           Text(s.demandForecast, style: AppTypography.h3),
@@ -304,10 +320,10 @@ class _VendorHome extends ConsumerWidget {
             (s.thisMonth, '₱${dash.thisMonth.toStringAsFixed(0)}'),
           ], onTaps: [
             () => context.push('/my-products'),
-            () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SalesAnalyticsScreen())),
-            () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SalesAnalyticsScreen())),
+            () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SalesAnalyticsScreen())),
+            () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SalesAnalyticsScreen())),
           ]),
           const SizedBox(height: AppSpacing.md),
           if (dash.recentOrders.isNotEmpty) ...[
@@ -479,8 +495,7 @@ class _StatsRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         for (var i = 0; i < stats.length; i++) ...[
-          if (i > 0)
-            SizedBox(width: i.isOdd ? AppSpacing.xl : AppSpacing.lg),
+          if (i > 0) SizedBox(width: i.isOdd ? AppSpacing.xl : AppSpacing.lg),
           Expanded(
             // Asymmetrical: the lead stat gets more room and a larger
             // number, rather than three identical thirds.
@@ -533,7 +548,10 @@ class _StatCell extends StatelessWidget {
       ],
     );
     if (onTap == null) return content;
-    return InkWell(borderRadius: BorderRadius.circular(AppRadius.sm), onTap: onTap, child: content);
+    return InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: onTap,
+        child: content);
   }
 }
 
@@ -571,8 +589,7 @@ class _MiniOrderTile extends StatelessWidget {
                   width: 44,
                   height: 44,
                   child: order.productImageUrl != null
-                      ? Image.network(order.productImageUrl!,
-                          fit: BoxFit.cover)
+                      ? Image.network(order.productImageUrl!, fit: BoxFit.cover)
                       : Container(
                           color: AppColors.backgroundStart,
                           child: const Icon(Icons.image_outlined,

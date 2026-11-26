@@ -1112,7 +1112,6 @@ class AppStrings {
   String get idTypeVerifiedAutomaticallyNote => _tl
       ? 'Awtomatikong na-verify ang ID type na ito. Pagkatapos mong magsubmit, dadalhin ka sa isang secure page para kumpletuhin ang iyong ID scan at mabilisang selfie check.'
       : 'This ID type is verified automatically. After you submit, you\'ll be taken to a secure page to complete your ID scan and a quick selfie check.';
-  String get businessPermitLabel => _tl ? 'Business Permit' : 'Business Permit';
   String get supportingDocumentOptionalLabel =>
       _tl ? 'Supporting Document (opsyonal)' : 'Supporting Document (optional)';
   String addedSuffixLabel(String label) =>
@@ -1134,9 +1133,6 @@ class AppStrings {
   String get couldntOpenVerificationLinkError => _tl
       ? 'Hindi mabuksan ang verification page. Suriin ang iyong koneksyon at subukan muli.'
       : "Couldn't open the verification page. Check your connection and try again.";
-  String get pleaseUploadBusinessPermitError => _tl
-      ? 'Mangyaring i-upload ang iyong Business Permit.'
-      : 'Please upload your Business Permit.';
 
   // ── Walkthrough (lib/features/walkthrough/presentation/walkthrough_screen.dart) ──
   String get skipLabel => _tl ? 'Laktawan' : 'Skip';
