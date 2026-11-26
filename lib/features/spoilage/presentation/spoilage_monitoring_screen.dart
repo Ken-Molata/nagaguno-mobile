@@ -45,6 +45,12 @@ class SpoilageMonitoringScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final listingsAsync = ref.watch(spoilageListingsProvider);
+    // Pre-warms freshnessCoveredCropsProvider the moment this screen
+    // opens, so by the time a seller actually taps "Verify Freshness"
+    // the request has very likely already resolved and _showReportDialog's
+    // own await returns instantly instead of waiting on the network
+    // right at the moment of the tap.
+    ref.watch(freshnessCoveredCropsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Spoilage Monitoring')),
@@ -105,9 +111,26 @@ class _ListingCard extends ConsumerWidget {
   // (not deleted) -- this is a UI-entry-point change, not a decision
   // to remove that backend capability.
   Future<void> _showReportDialog(BuildContext context, WidgetRef ref) async {
-    final coveredCropsAsync = ref.read(freshnessCoveredCropsProvider);
-    final coveredCrops = coveredCropsAsync.valueOrNull ?? const [];
+    // REAL BUG FOUND AND FIXED, live-confirmed: this used to read the
+    // provider's CURRENT snapshot synchronously (`ref.read(provider)`
+    // + `.valueOrNull`) instead of awaiting it. Since nothing else on
+    // this screen ever watches freshnessCoveredCropsProvider, the very
+    // first tap of this button each time was also the very first
+    // moment anything ever asked for it -- the network request hadn't
+    // had time to complete yet, so `.valueOrNull` was reliably still
+    // null (AsyncLoading), and every listing, including a plainly
+    // covered crop like Eggplant, fell through to "Photo Verification
+    // Not Available" regardless of its real name. `.future` awaits the
+    // actual result (using the cached value once it has resolved, or
+    // the in-flight request the first time), closing the race.
+    List<String> coveredCrops;
+    try {
+      coveredCrops = await ref.read(freshnessCoveredCropsProvider.future);
+    } catch (_) {
+      coveredCrops = const [];
+    }
     final matchedCrop = resolveCoveredCrop(listing.name, coveredCrops);
+    if (!context.mounted) return;
 
     if (matchedCrop == null) {
       showDialog<void>(
@@ -453,11 +476,24 @@ class _ListingCard extends ConsumerWidget {
 
           const SizedBox(height: AppSpacing.sm),
           if (listing.isHidden)
+            // REAL BEHAVIOR CHANGE, BY EXPLICIT REQUEST: "Unhide This
+            // Listing" let a seller bring a hidden listing straight
+            // back to 'live' with zero evidence it had actually
+            // stopped being expired -- the same unverified-claim gap
+            // the manual dropdown removal above closed, just reached
+            // through a different button. The only way back now is
+            // the same photo-verified check as everything else:
+            // routes/spoilage.js's POST /cv-override/:productId
+            // already sets status back to 'live' (and clears
+            // auto_hidden_reason) whenever the model's own stage comes
+            // back as anything other than 'expired', so this one
+            // button already does the right thing for a hidden
+            // listing with no backend change needed.
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () => _unhide(context, ref),
-                child: const Text('Unhide This Listing'),
+                onPressed: () => _showReportDialog(context, ref),
+                child: const Text('Verify Freshness'),
               ),
             )
           else
@@ -484,17 +520,5 @@ class _ListingCard extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _unhide(BuildContext context, WidgetRef ref) async {
-    try {
-      await ref.read(spoilageRepositoryProvider).unhide(listing.productId);
-      ref.invalidate(spoilageListingsProvider);
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Couldn\'t unhide this listing. Please try again.')));
-      }
-    }
   }
 }
