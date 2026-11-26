@@ -837,15 +837,29 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen>
                   if (order.sellerPaymentMethods.isNotEmpty && isBuyer) ...[
                     Text(s.sendPaymentToLabel,
                         style: AppTypography.bodySmall),
-                    // UW 1.2: "a copy icon on the account number, the
-                    // same way a seller's receiving details are
-                    // copyable at checkout" -- this is that spot.
-                    ...order.sellerPaymentMethods.map((m) => CopyableValue(
-                        label: (m['provider'] ?? '').toString(),
-                        value: (m['account_number'] ??
-                                m['account_details'] ??
-                                '')
-                            .toString())),
+                    // REAL BUG FOUND AND FIXED, live-confirmed: this
+                    // read m['provider']/m['account_number']/
+                    // m['account_details'] -- keys that never existed
+                    // on the real payment-method shape routes/orders.js
+                    // actually returns (gcash_number, bank_name,
+                    // bank_account_number, bank_account_name -- see
+                    // refund_detail_screen.dart's own proven-working
+                    // rendering of the exact same shape). label ended
+                    // up '' (not null, so CopyableValue still rendered
+                    // its "label: value" format) and value ended up ''
+                    // too -- a bare copy icon next to a lone colon,
+                    // with nothing useful to actually copy.
+                    ...order.sellerPaymentMethods.expand((m) => [
+                          if (m['gcash_number'] != null)
+                            CopyableValue(
+                                label: 'GCash',
+                                value: m['gcash_number'].toString()),
+                          if (m['bank_name'] != null)
+                            CopyableValue(
+                                label: m['bank_name'].toString(),
+                                value:
+                                    '${m['bank_account_number']} (${m['bank_account_name']})'),
+                        ]),
                     const SizedBox(height: AppSpacing.xs),
                     // UW 6.1's exact reminder, shown alongside the
                     // receiving details -- previously absent entirely.
