@@ -44,6 +44,32 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
 
   bool get _isEditing => widget.existing != null;
 
+  // REAL INTEGRITY GAP FOUND AND FIXED, BY EXPLICIT REQUEST: harvest
+  // date drives the ENTIRE automatic spoilage calculation (Part I of
+  // the project documentation -- remaining_pct is computed from
+  // CURRENT_DATE minus harvested_at). Letting a seller freely re-edit
+  // it after creation meant they could reset an aging listing's
+  // computed freshness stage back to "fresh" at will, with no
+  // verification at all -- the exact same unverified-override gap the
+  // manual spoilage dropdown's removal (spoilage_monitoring_screen.dart)
+  // already closed, just reached through a completely different
+  // screen. Harvest date is now fixed once a listing is created; it
+  // can only ever be set at creation time.
+  bool get _harvestDateLocked => _isEditing;
+
+  // REAL INTEGRITY GAP FOUND AND FIXED, BY EXPLICIT REQUEST: the
+  // automatic spoilage discount (auto_discount_pct) combines
+  // ADDITIVELY with listed_price to produce the generated
+  // price_per_unit column (Part I of the project documentation) --
+  // but nothing stopped a seller from simply raising listed_price
+  // while that automatic discount was active, silently cancelling out
+  // its real economic effect while the "% off" badge buyers see still
+  // displayed as if a genuine markdown were in effect. Price is now
+  // locked while an automatic spoilage discount is currently applied;
+  // it unlocks again once the discount clears (the listing recovers,
+  // or is removed from sale).
+  bool get _priceLocked => widget.existing?.hasActiveAutoDiscount ?? false;
+
   Future<void> _pickPhoto() async {
     // UW 11: runs the on-device produce check (ml/image_validation/
     // produce_classifier.dart) before accepting the photo at all.
@@ -204,10 +230,16 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _priceController,
+                        enabled: !_priceLocked,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
-                        decoration: const InputDecoration(
-                            labelText: 'Price per Unit (₱)'),
+                        decoration: InputDecoration(
+                          labelText: 'Price per Unit (₱)',
+                          helperText: _priceLocked
+                              ? 'Locked while an automatic spoilage discount is active'
+                              : null,
+                          helperMaxLines: 2,
+                        ),
                         validator: (v) {
                           if (v == null || v.trim().isEmpty) return 'Required';
                           final parsed = double.tryParse(v.trim());
@@ -262,10 +294,16 @@ class _AddEditProductScreenState extends ConsumerState<AddEditProductScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 InkWell(
-                  onTap: _pickHarvestedDate,
+                  onTap: _harvestDateLocked ? null : _pickHarvestedDate,
                   child: InputDecorator(
-                    decoration:
-                        const InputDecoration(labelText: 'Harvest Date'),
+                    decoration: InputDecoration(
+                      labelText: 'Harvest Date',
+                      helperText: _harvestDateLocked
+                          ? 'Fixed once set -- drives the automatic spoilage calculation'
+                          : null,
+                      helperMaxLines: 2,
+                      enabled: !_harvestDateLocked,
+                    ),
                     child: Text(_harvestedAt == null
                         ? 'Select date'
                         : '${_harvestedAt!.year}-${_harvestedAt!.month.toString().padLeft(2, '0')}-${_harvestedAt!.day.toString().padLeft(2, '0')}'),

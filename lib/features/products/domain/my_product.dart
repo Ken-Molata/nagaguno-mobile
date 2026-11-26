@@ -21,6 +21,7 @@ class MyProduct {
     this.barangay,
     this.storageCondition,
     this.shelfLifeDays,
+    this.autoDiscountPct,
   });
 
   final String id;
@@ -42,8 +43,16 @@ class MyProduct {
   final String? barangay;
   final String? storageCondition; // 'room_temperature' | 'refrigerated'
   final int? shelfLifeDays;
+  /// Already returned by GET / (routes/products.js) but never parsed
+  /// here before -- needed so add_edit_product_screen.dart can lock
+  /// the price field while the automatic spoilage discount (Part I of
+  /// the project documentation) is currently active, instead of
+  /// letting a seller quietly raise listed_price to cancel out its
+  /// real economic effect while the "% off" badge still shows.
+  final double? autoDiscountPct;
 
   bool get isLive => status == 'live';
+  bool get hasActiveAutoDiscount => (autoDiscountPct ?? 0) > 0;
 
   factory MyProduct.fromJson(Map<String, dynamic> json) {
     double asDouble(dynamic v) => double.tryParse(v.toString()) ?? 0;
@@ -63,6 +72,9 @@ class MyProduct {
       storageCondition: json['storage_condition'] as String?,
       shelfLifeDays: json['shelf_life_days'] != null
           ? int.tryParse(json['shelf_life_days'].toString())
+          : null,
+      autoDiscountPct: json['auto_discount_pct'] != null
+          ? double.tryParse(json['auto_discount_pct'].toString())
           : null,
     );
   }
