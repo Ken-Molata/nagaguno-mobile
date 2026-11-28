@@ -332,6 +332,11 @@ class _ProductListTile extends ConsumerWidget {
                         color: product.isLive
                             ? AppColors.statusSuccessFg
                             : AppColors.textMuted)),
+                if (product.isSpoilageHidden)
+                  Text(
+                      'Hidden by the spoilage system -- use Verify Freshness to restore it.',
+                      style: AppTypography.label
+                          .copyWith(color: AppColors.textMuted)),
               ],
             ),
           ),
@@ -382,11 +387,25 @@ class _ProductListTile extends ConsumerWidget {
                 }
               }
             },
+            // REAL GAP FOUND AND FIXED, BY EXPLICIT REQUEST: Edit and
+            // Show used to appear here unconditionally, even for a
+            // listing the spoilage system itself auto-hid for being
+            // expired/critical -- Edit could re-trigger a shelf-life
+            // recompute or otherwise route around the locks already
+            // placed on this listing, and Show (PATCH /:id/toggle) let
+            // a seller flip it straight back to 'live' with one tap,
+            // bypassing the photo-verified CV override entirely (the
+            // backend now also rejects both, this just keeps the menu
+            // from offering an option that would fail anyway). Delete
+            // remains the one way out besides Verify Freshness on the
+            // Spoilage Monitoring screen.
             itemBuilder: (_) => [
-              PopupMenuItem(value: 'edit', child: Text(s.editTooltip)),
-              PopupMenuItem(
-                  value: 'toggle',
-                  child: Text(product.isLive ? s.hideLabel : s.showLabel)),
+              if (!product.isSpoilageHidden) ...[
+                PopupMenuItem(value: 'edit', child: Text(s.editTooltip)),
+                PopupMenuItem(
+                    value: 'toggle',
+                    child: Text(product.isLive ? s.hideLabel : s.showLabel)),
+              ],
               PopupMenuItem(value: 'delete', child: Text(s.deleteLabel)),
             ],
           ),

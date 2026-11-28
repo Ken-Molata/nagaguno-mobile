@@ -22,6 +22,7 @@ class MyProduct {
     this.storageCondition,
     this.shelfLifeDays,
     this.autoDiscountPct,
+    this.autoHiddenReason,
   });
 
   final String id;
@@ -50,9 +51,18 @@ class MyProduct {
   /// letting a seller quietly raise listed_price to cancel out its
   /// real economic effect while the "% off" badge still shows.
   final double? autoDiscountPct;
+  /// Non-null only when the SPOILAGE SYSTEM hid this listing (the
+  /// hourly job or a manual/CV spoilage report) -- a seller's own
+  /// voluntary "Hide" leaves this null. The one reliable way to tell
+  /// the two apart, since both land on the same status = 'hidden'.
+  final String? autoHiddenReason;
 
   bool get isLive => status == 'live';
   bool get hasActiveAutoDiscount => (autoDiscountPct ?? 0) > 0;
+  /// Hidden specifically BY THE SPOILAGE SYSTEM, not by the seller's
+  /// own choice -- the only cases where Edit/Show must be blocked and
+  /// Verify Freshness (or deleting the listing) is the only way out.
+  bool get isSpoilageHidden => !isLive && autoHiddenReason != null;
 
   factory MyProduct.fromJson(Map<String, dynamic> json) {
     double asDouble(dynamic v) => double.tryParse(v.toString()) ?? 0;
@@ -76,6 +86,7 @@ class MyProduct {
       autoDiscountPct: json['auto_discount_pct'] != null
           ? double.tryParse(json['auto_discount_pct'].toString())
           : null,
+      autoHiddenReason: json['auto_hidden_reason'] as String?,
     );
   }
 }
