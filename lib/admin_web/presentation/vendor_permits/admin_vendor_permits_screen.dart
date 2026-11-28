@@ -11,6 +11,16 @@
 // table's own migration comment), but the admin screen itself no
 // longer calls that out in its copy; which rows are real is explained
 // outside the app, not by on-screen disclaimer text.
+//
+// REAL BUG FOUND AND FIXED: this used to match a reference row by
+// permit_type alone, so "On record" showed an unrelated demo business
+// (different name, different permit number, different TIN) under
+// every submission of that permit type -- looking exactly like a
+// verified match when it wasn't one. Now matches on the submitted
+// permit_number itself (the actual identifying value a real registry
+// lookup would key on); if nothing in the small demo registry happens
+// to carry that exact permit number, "No matching on-record reference
+// found" is shown instead of a misleadingly unrelated row.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,8 +122,10 @@ class _VendorPermitDetailDialogState
     }
     try {
       final registry = await repo.getDemoRegistry();
+      final submittedNumber = widget.row.permitNumber.trim().toLowerCase();
       for (final v in registry) {
-        if (v.permitType == widget.row.permitType) {
+        if (submittedNumber.isNotEmpty &&
+            v.permitNumber.trim().toLowerCase() == submittedNumber) {
           matchingReference = v;
           break;
         }
@@ -133,17 +145,41 @@ class _VendorPermitDetailDialogState
     }
   }
 
+  // REAL BUG FOUND AND FIXED: this never caught a failed decide() call
+  // -- the backend was throwing on every single Approve/Reject (a
+  // separate bug, now fixed: notify() inserted a notification_type
+  // value that was never added to the enum, so the whole transaction,
+  // including the status update, rolled back every time), and with no
+  // try/catch here, that error vanished silently: no SnackBar, no
+  // dialog staying open with an explanation, nothing -- while the
+  // submission quietly stayed pending. Now mirrors the same
+  // catch-and-report pattern every other admin decision screen uses
+  // (e.g. admin_settlements_screen.dart).
   Future<void> _decide({required bool approve, String? rejectionReason}) async {
-    await runAdminDecision(context, () async {
-      await ref.read(vendorPermitsRepositoryProvider).decide(
-            widget.row.id,
-            approve: approve,
-            rejectionReason: rejectionReason,
-          );
-    });
-    if (mounted) {
-      widget.onDecided();
-      Navigator.of(context).pop();
+    try {
+      await runAdminDecision(context, () async {
+        await ref.read(vendorPermitsRepositoryProvider).decide(
+              widget.row.id,
+              approve: approve,
+              rejectionReason: rejectionReason,
+            );
+      });
+      if (mounted) {
+        // Captured before pop() so it's not read from a context that's
+        // about to be torn down -- the ScaffoldMessengerState itself
+        // belongs to the underlying screen and stays valid regardless.
+        final messenger = ScaffoldMessenger.of(context);
+        widget.onDecided();
+        Navigator.of(context).pop();
+        messenger.showSnackBar(SnackBar(
+            content: Text(approve ? 'Submission approved.' : 'Submission rejected.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(adminErrorMessage(e,
+                fallback: "Couldn't record that decision. Please try again."))));
+      }
     }
   }
 
@@ -231,7 +267,7 @@ class _VendorPermitDetailDialogState
                                           const Text('On record', style: AppTypography.h3),
                                           const SizedBox(height: AppSpacing.sm),
                                           Text(
-                                            'No on-record reference available for ${row.permitTypeLabel.toLowerCase()}.',
+                                            'No matching on-record reference found for permit number "${row.permitNumber}".',
                                             style: AppTypography.bodySmall,
                                           ),
                                         ],
