@@ -141,6 +141,32 @@ class _ListingCard extends ConsumerWidget {
     if (ref.read(freshnessCoveredCropsProvider) is AsyncError) {
       ref.invalidate(freshnessCoveredCropsProvider);
     }
+
+    // REAL GAP FOUND AND FIXED: with the backend's own cold-start/429
+    // retry budget now up to ~170s (services/freshnessService.js,
+    // widened after live-testing showed a shorter one wasn't always
+    // enough), this await could previously leave the screen looking
+    // completely frozen -- no spinner, no message -- for up to that
+    // long on the very first check after a period of inactivity.
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+                height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                  'Checking freshness service availability... this can take a couple of minutes if it hasn\'t been used in a while.'),
+            ),
+          ],
+        ),
+      ),
+    );
+
     List<String> coveredCrops;
     bool fetchFailed = false;
     try {
@@ -149,6 +175,8 @@ class _ListingCard extends ConsumerWidget {
       coveredCrops = const [];
       fetchFailed = true;
     }
+
+    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
     final matchedCrop =
         fetchFailed ? null : resolveCoveredCrop(listing.name, coveredCrops);
     if (!context.mounted) return;

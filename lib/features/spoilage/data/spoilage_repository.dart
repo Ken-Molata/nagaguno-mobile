@@ -106,12 +106,13 @@ class SpoilageRepository {
   // (not globally, since every other endpoint on this client is
   // legitimately fast and a global 60s+ timeout would make an
   // unrelated hung request take a minute to fail instead of 15s). Set
-  // to 130s -- comfortably above the backend's own 100s cold-start/429
-  // retry budget (freshnessService.js's requestThroughColdStart), so
+  // to 200s -- comfortably above the backend's own 170s cold-start/429
+  // retry budget (freshnessService.js's requestThroughColdStart,
+  // widened after live-testing showed 100s wasn't always enough), so
   // this client never cuts the request off a moment before the
   // backend itself would have given up.
   static final _coldStartTolerantOptions =
-      Options(receiveTimeout: const Duration(seconds: 130));
+      Options(receiveTimeout: const Duration(seconds: 200));
 
   Future<List<String>> getFreshnessCoveredCrops() async {
     final response = await _client.dio.get(
