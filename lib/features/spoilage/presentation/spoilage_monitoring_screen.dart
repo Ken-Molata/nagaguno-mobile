@@ -123,14 +123,57 @@ class _ListingCard extends ConsumerWidget {
     // Not Available" regardless of its real name. `.future` awaits the
     // actual result (using the cached value once it has resolved, or
     // the in-flight request the first time), closing the race.
+    //
+    // SECOND REAL BUG FOUND AND FIXED, also live-confirmed: the
+    // backend's getModelInfo() call to nagaguno-ml-service (a separate
+    // Render service that spins down when idle and takes ~30-90s to
+    // cold-start) used to time out after just 5s, which this screen's
+    // own catch-and-fall-back-to-[] then quietly swallowed -- and
+    // because freshnessCoveredCropsProvider is a plain (non-autoDispose)
+    // FutureProvider, ONE cold-start failure left it permanently stuck
+    // in an error state for the rest of the app session: every
+    // following tap, on every crop, kept hitting the same cached
+    // failure with no way to recover short of restarting the app.
+    // Invalidating before re-reading here means each tap gets a fresh
+    // attempt. The backend timeout itself is also fixed (see
+    // services/freshnessService.js), but this still matters as a
+    // safety net for whatever timeout value is ever set.
+    if (ref.read(freshnessCoveredCropsProvider) is AsyncError) {
+      ref.invalidate(freshnessCoveredCropsProvider);
+    }
     List<String> coveredCrops;
+    bool fetchFailed = false;
     try {
       coveredCrops = await ref.read(freshnessCoveredCropsProvider.future);
     } catch (_) {
       coveredCrops = const [];
+      fetchFailed = true;
     }
-    final matchedCrop = resolveCoveredCrop(listing.name, coveredCrops);
+    final matchedCrop =
+        fetchFailed ? null : resolveCoveredCrop(listing.name, coveredCrops);
     if (!context.mounted) return;
+
+    if (fetchFailed) {
+      // Distinct from "this crop genuinely isn't covered" below --
+      // claiming a crop list here (when none was actually fetched)
+      // would contradict itself, exactly the confusing message this
+      // bug used to show.
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Freshness Check Unavailable'),
+          content: const Text(
+              'Couldn\'t reach the freshness-checking service just now. '
+              'Please wait a moment and try again.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('OK')),
+          ],
+        ),
+      );
+      return;
+    }
 
     if (matchedCrop == null) {
       showDialog<void>(
@@ -139,7 +182,7 @@ class _ListingCard extends ConsumerWidget {
           title: const Text('Photo Verification Not Available'),
           content: Text(
               'Photo-verified freshness checking isn\'t available for "${listing.name}" yet. '
-              'It currently only covers: ${coveredCrops.isEmpty ? 'Ampalaya, Banana, Cucumber, Eggplant, Orange, Papaya, Pineapple, Tomato' : coveredCrops.join(', ')}.'),
+              'It currently only covers: ${coveredCrops.join(', ')}.'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
