@@ -95,9 +95,25 @@ class SpoilageRepository {
   /// runs in ml-service instead). Callers should only offer the
   /// photo-freshness-check entry point for a listing matching one of
   /// these.
+  // REAL BUG FOUND AND FIXED, live-confirmed: raising the backend's own
+  // axios timeout to the ml-service (services/freshnessService.js) to
+  // tolerate a Render cold-start did nothing on its own -- ApiClient's
+  // Dio instance carries a GLOBAL 15s receiveTimeout (api_client.dart),
+  // so the mobile app itself gave up and threw well before the backend
+  // could ever finish waiting on a cold ml-service, landing on the
+  // exact same "Couldn't reach the freshness-checking service" message
+  // the backend fix was meant to prevent. Overridden per-call here
+  // (not globally, since every other endpoint on this client is
+  // legitimately fast and a global 60s+ timeout would make an
+  // unrelated hung request take a minute to fail instead of 15s).
+  static final _coldStartTolerantOptions =
+      Options(receiveTimeout: const Duration(seconds: 100));
+
   Future<List<String>> getFreshnessCoveredCrops() async {
-    final response =
-        await _client.dio.get(ApiEndpoints.spoilageFreshnessModelInfo);
+    final response = await _client.dio.get(
+      ApiEndpoints.spoilageFreshnessModelInfo,
+      options: _coldStartTolerantOptions,
+    );
     return (response.data['data']['covered_crops'] as List).cast<String>();
   }
 
@@ -119,8 +135,11 @@ class SpoilageRepository {
     final formData = FormData.fromMap({
       'photo': await MultipartFile.fromFile(photoPath),
     });
-    final response = await _client.dio
-        .post(ApiEndpoints.spoilageCvOverride(productId), data: formData);
+    final response = await _client.dio.post(
+      ApiEndpoints.spoilageCvOverride(productId),
+      data: formData,
+      options: _coldStartTolerantOptions,
+    );
     final data = response.data['data'] as Map<String, dynamic>;
     return CvOverrideResult(
       stage: data['stage'] as String,
