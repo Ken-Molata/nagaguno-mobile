@@ -445,17 +445,37 @@ class _ListingCard extends ConsumerWidget {
               ),
             ],
           ] else ...[
-            // remaining_pct is a real fraction (0-1) -- ×100 for display, same conversion discipline as the discount field elsewhere.
+            // REAL BUG FOUND AND FIXED, by explicit request: this always
+            // showed the raw calendar days-elapsed/shelf-life text, even
+            // once a CV photo had overridden the displayed stage
+            // (migration 062) and its own remaining_pct (migration 063)
+            // -- a listing could show "NEAR SPOILAGE" at the top while
+            // this very line, right below it, still read something like
+            // "0% of shelf life remaining (30 of 4 days elapsed)": real
+            // calendar numbers from before the photo was ever taken,
+            // flatly contradicting the stage shown next to them. Once a
+            // CV report is on file, remaining_pct itself is already the
+            // photo-verified number (backend fix), so this just drops
+            // the now-stale, now-misleading "X of Y days elapsed" half
+            // of the sentence for that case rather than showing it
+            // alongside a result it no longer matches.
             Text(
-                '${(listing.remainingPct * 100).toStringAsFixed(0)}% of shelf life remaining '
-                '(${listing.daysElapsed ?? '?'} of ${listing.shelfLifeDays ?? '?'} days elapsed)',
+                listing.manualSpoilageSource == 'cv'
+                    ? '${(listing.remainingPct * 100).toStringAsFixed(0)}% of shelf life remaining (from your photo verification)'
+                    : '${(listing.remainingPct * 100).toStringAsFixed(0)}% of shelf life remaining '
+                      '(${listing.daysElapsed ?? '?'} of ${listing.shelfLifeDays ?? '?'} days elapsed)',
                 style: AppTypography.bodySmall),
           ],
           if (listing.isManuallyReported) ...[
             const SizedBox(height: 4),
             Text(
+                // By explicit request: say plainly that this was an
+                // automatic, photo-based OVERRIDE of the system's own
+                // status, never "manually reported" -- that wording
+                // belongs only to the unverified dropdown self-report,
+                // a genuinely different, lower-trust kind of claim.
                 listing.manualSpoilageSource == 'cv'
-                    ? 'Verified with photo'
+                    ? 'Status overridden by photo verification'
                     : 'Manually reported',
                 style:
                     AppTypography.label.copyWith(color: AppColors.accentDark)),
