@@ -122,9 +122,15 @@ class _VendorPermitDetailDialogState
     }
     try {
       final registry = await repo.getDemoRegistry();
+      // Permit numbers are only unique WITHIN a permit type (a Mayor's
+      // Permit and a BIR Certificate don't share one numbering scheme),
+      // not globally -- matching on permit_number alone could collide
+      // across two different permit types that happen to reuse the
+      // same number string. Both must agree.
       final submittedNumber = widget.row.permitNumber.trim().toLowerCase();
       for (final v in registry) {
         if (submittedNumber.isNotEmpty &&
+            v.permitType == widget.row.permitType &&
             v.permitNumber.trim().toLowerCase() == submittedNumber) {
           matchingReference = v;
           break;
