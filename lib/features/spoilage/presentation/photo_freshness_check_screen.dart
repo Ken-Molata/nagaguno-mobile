@@ -156,7 +156,7 @@ class _PhotoFreshnessCheckScreenState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Take or upload a photo of this exact ${widget.matchedCrop} listing. '
+                'Take a photo of this exact ${widget.matchedCrop} listing right now. '
                 'The system will check it really is ${widget.matchedCrop}, then estimate '
                 'how fresh it looks and update the status right away -- this can correct '
                 'the automatic status in either direction, not just toward more spoiled.',
@@ -169,24 +169,16 @@ class _PhotoFreshnessCheckScreenState
                   child: Image.file(File(_photoPath!), height: 220, fit: BoxFit.cover),
                 ),
               const SizedBox(height: AppSpacing.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _busy ? null : () => _pickAndCheck(ImageSource.camera),
-                      icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text('Take Photo'),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _busy ? null : () => _pickAndCheck(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Upload Photo'),
-                    ),
-                  ),
-                ],
+              // By explicit request: camera only, no gallery upload. A
+              // gallery pick could be an old or stock photo that
+              // doesn't reflect the produce's real condition right
+              // now -- the whole point of this feature over the
+              // manual dropdown it replaced is a photo that's actually
+              // verified to be of THIS listing, taken THIS moment.
+              OutlinedButton.icon(
+                onPressed: _busy ? null : () => _pickAndCheck(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Take Photo'),
               ),
               if (_busy) ...[
                 const SizedBox(height: AppSpacing.lg),
