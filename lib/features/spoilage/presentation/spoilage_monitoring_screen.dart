@@ -230,6 +230,10 @@ class _ListingCard extends ConsumerWidget {
     if (applied == true) ref.invalidate(spoilageListingsProvider);
   }
 
+  // Still used to show an existing discount's label on the card below
+  // (a discount could carry one set before the creation dialog was
+  // simplified, or via direct API/admin use) -- just no longer offered
+  // as a choice when starting a new sale.
   static const _discountLabels = {
     'seller_discount': 'Seller Discount',
     'bulk_discount': 'Bulk Discount',
@@ -237,127 +241,49 @@ class _ListingCard extends ConsumerWidget {
     'clearance': 'Clearance',
   };
 
+  // REAL CHANGE, BY EXPLICIT REQUEST: this dialog used to also ask for
+  // a time-box period (until removed vs. set period with start/end
+  // dates), a minimum order quantity, and a cosmetic label. Stripped
+  // down to just the percentage -- every sale now starts immediately
+  // and runs until the seller removes it, with no minimum order
+  // quantity and the default label, matching the "1 to 75 percent
+  // discount, nothing else" ask exactly. The backend fields these
+  // omitted values map to (when_it_applies/start_date/end_date/
+  // minimum_order/label) are left untouched -- they still default
+  // correctly when absent from the request, and the generated-column/
+  // bulk-pricing logic those fields drive is unrelated, working
+  // infrastructure this change has no reason to touch.
   Future<void> _showSaleDialog(BuildContext context, WidgetRef ref) async {
     final percentController = TextEditingController();
-    final minOrderController = TextEditingController();
-    String whenItApplies = 'now';
-    DateTime? startDate;
-    DateTime? endDate;
-    String? label;
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Start a Sale'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: percentController,
-                  keyboardType: TextInputType.number,
-                  // UW 3.5: "a whole number from 1 to 50."
-                  decoration: const InputDecoration(
-                      labelText: 'Discount (whole number, 1-50)',
-                      suffixText: '%'),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                RadioGroup<String>(
-                  groupValue: whenItApplies,
-                  onChanged: (v) => setDialogState(() => whenItApplies = v!),
-                  child: const Column(children: [
-                    RadioListTile<String>(
-                        title: Text('Until removed'),
-                        value: 'now',
-                        contentPadding: EdgeInsets.zero),
-                    RadioListTile<String>(
-                        title: Text('Set period'),
-                        value: 'set_period',
-                        contentPadding: EdgeInsets.zero),
-                  ]),
-                ),
-                if (whenItApplies == 'set_period')
-                  Row(children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                              context: dialogContext,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now()
-                                  .add(const Duration(days: 365)));
-                          if (picked != null) {
-                            setDialogState(() => startDate = picked);
-                          }
-                        },
-                        child: Text(startDate == null
-                            ? 'Start date'
-                            : '${startDate!.year}-${startDate!.month}-${startDate!.day}'),
-                      ),
-                    ),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                              context: dialogContext,
-                              initialDate: startDate ?? DateTime.now(),
-                              firstDate: startDate ?? DateTime.now(),
-                              lastDate: DateTime.now()
-                                  .add(const Duration(days: 365)));
-                          if (picked != null) {
-                            setDialogState(() => endDate = picked);
-                          }
-                        },
-                        child: Text(endDate == null
-                            ? 'End date'
-                            : '${endDate!.year}-${endDate!.month}-${endDate!.day}'),
-                      ),
-                    ),
-                  ]),
-                const SizedBox(height: AppSpacing.sm),
-                TextField(
-                  controller: minOrderController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                      labelText: 'Minimum order quantity (optional)'),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: label,
-                  decoration:
-                      const InputDecoration(labelText: 'Label (optional)'),
-                  items: _discountLabels.entries
-                      .map((e) =>
-                          DropdownMenuItem(value: e.key, child: Text(e.value)))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => label = v),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Cancel')),
-            TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Start Sale')),
-          ],
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Start a Sale'),
+        content: TextField(
+          controller: percentController,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(
+              labelText: 'Discount (whole number, 1-75)', suffixText: '%'),
         ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Start Sale')),
+        ],
       ),
     );
     if (confirmed != true) return;
 
     final percent = int.tryParse(percentController.text.trim());
-    if (percent == null || percent < 1 || percent > 50) {
+    if (percent == null || percent < 1 || percent > 75) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Enter a whole number from 1 to 50.')));
+            content: Text('Enter a whole number from 1 to 75.')));
       }
       return;
     }
@@ -365,11 +291,7 @@ class _ListingCard extends ConsumerWidget {
       await ref.read(spoilageRepositoryProvider).startSale(
             listing.productId,
             discountPercent: percent,
-            whenItApplies: whenItApplies,
-            startDate: startDate,
-            endDate: endDate,
-            minimumOrderQty: double.tryParse(minOrderController.text.trim()),
-            label: label,
+            whenItApplies: 'now',
           );
       ref.invalidate(spoilageListingsProvider);
     } catch (_) {
