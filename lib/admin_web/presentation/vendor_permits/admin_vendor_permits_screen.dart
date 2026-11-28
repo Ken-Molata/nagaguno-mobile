@@ -12,15 +12,21 @@
 // longer calls that out in its copy; which rows are real is explained
 // outside the app, not by on-screen disclaimer text.
 //
-// REAL BUG FOUND AND FIXED: this used to match a reference row by
-// permit_type alone, so "On record" showed an unrelated demo business
-// (different name, different permit number, different TIN) under
-// every submission of that permit type -- looking exactly like a
-// verified match when it wasn't one. Now matches on the submitted
-// permit_number itself (the actual identifying value a real registry
-// lookup would key on); if nothing in the small demo registry happens
-// to carry that exact permit number, "No matching on-record reference
-// found" is shown instead of a misleadingly unrelated row.
+// REAL BUG FOUND AND FIXED, history worth keeping: this originally
+// matched a reference row by permit_type alone, so "On record" showed
+// an unrelated demo business under every submission of that type --
+// looking like a verified match when it wasn't one. Fixed to match on
+// permit_number (then widened to also require permit_type, since
+// permit numbers are only unique within a type). BY EXPLICIT REQUEST,
+// the match now runs on a 4-field identity instead: permit number,
+// TIN, date issued, and expiry date together -- business name and
+// business address are shown to the admin for their own eyes but
+// deliberately play no part in the match. If nothing in the small
+// demo registry matches all four, "No matching on-record reference
+// found" is shown instead of a misleadingly unrelated row. There is
+// also no auto-approval of any kind here or anywhere in this flow --
+// that was tried once and explicitly reverted; every submission
+// always goes to manual admin review with the document photo.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,16 +128,24 @@ class _VendorPermitDetailDialogState
     }
     try {
       final registry = await repo.getDemoRegistry();
-      // Permit numbers are only unique WITHIN a permit type (a Mayor's
-      // Permit and a BIR Certificate don't share one numbering scheme),
-      // not globally -- matching on permit_number alone could collide
-      // across two different permit types that happen to reuse the
-      // same number string. Both must agree.
+      // REAL CHANGE, BY EXPLICIT REQUEST: the match moved off
+      // (permitType, permitNumber) onto a 4-field identity --
+      // permit number, TIN, date issued, and expiry date.
+      // businessName/businessAddress are shown to the admin for their
+      // own eyes but deliberately play no part in the match itself.
+      // All four must agree, including a null expiry_date on both
+      // sides counting as equal (a document with no printed expiry,
+      // e.g. a BIR Form 2303, genuinely has none on either side, not a
+      // mismatch).
       final submittedNumber = widget.row.permitNumber.trim().toLowerCase();
+      final submittedTin = widget.row.tin?.trim().toLowerCase();
       for (final v in registry) {
+        final vTin = v.tin?.trim().toLowerCase();
         if (submittedNumber.isNotEmpty &&
-            v.permitType == widget.row.permitType &&
-            v.permitNumber.trim().toLowerCase() == submittedNumber) {
+            v.permitNumber.trim().toLowerCase() == submittedNumber &&
+            vTin == submittedTin &&
+            v.dateIssued == widget.row.dateIssued &&
+            v.expiryDate == widget.row.expiryDate) {
           matchingReference = v;
           break;
         }
@@ -273,7 +287,8 @@ class _VendorPermitDetailDialogState
                                           const Text('On record', style: AppTypography.h3),
                                           const SizedBox(height: AppSpacing.sm),
                                           Text(
-                                            'No matching on-record reference found for permit number "${row.permitNumber}".',
+                                            'No matching on-record reference found for permit number "${row.permitNumber}" '
+                                            '(matched on permit number, TIN, date issued, and expiry date together).',
                                             style: AppTypography.bodySmall,
                                           ),
                                         ],
@@ -287,6 +302,12 @@ class _VendorPermitDetailDialogState
                                         'Permit number': ref_.permitNumber,
                                         'TIN': ref_.tin ?? '—',
                                         'Business address': ref_.businessAddress ?? '—',
+                                        'Date issued': ref_.dateIssued == null
+                                            ? '—'
+                                            : _fmt(ref_.dateIssued!),
+                                        'Expiry date': ref_.expiryDate == null
+                                            ? 'Not shown on document'
+                                            : _fmt(ref_.expiryDate!),
                                       },
                                     ),
                             ),

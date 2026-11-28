@@ -179,6 +179,8 @@ class DemoRegisteredVendor {
     required this.permitNumber,
     this.tin,
     this.businessAddress,
+    this.dateIssued,
+    this.expiryDate,
     required this.note,
   });
 
@@ -187,6 +189,13 @@ class DemoRegisteredVendor {
   final String permitNumber;
   final String? tin;
   final String? businessAddress;
+  /// Added alongside [expiryDate], by explicit request, when the
+  /// admin review match moved off (permitType, permitNumber) onto
+  /// (permitNumber, tin, dateIssued, expiryDate) -- businessName and
+  /// businessAddress are shown for the admin's own eyes but
+  /// deliberately play no part in the match itself.
+  final DateTime? dateIssued;
+  final DateTime? expiryDate;
   final String note;
 
   factory DemoRegisteredVendor.fromJson(Map<String, dynamic> json) =>
@@ -196,6 +205,12 @@ class DemoRegisteredVendor {
         permitNumber: json['permit_number'] as String,
         tin: json['tin'] as String?,
         businessAddress: json['business_address'] as String?,
+        dateIssued: json['date_issued'] != null
+            ? DateTime.parse(json['date_issued'] as String)
+            : null,
+        expiryDate: json['expiry_date'] != null
+            ? DateTime.parse(json['expiry_date'] as String)
+            : null,
         note: json['note'] as String? ?? '',
       );
 }
